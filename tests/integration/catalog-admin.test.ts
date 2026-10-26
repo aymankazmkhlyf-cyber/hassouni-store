@@ -250,6 +250,14 @@ describe.skipIf(!hasDb)("privacy", () => {
 });
 
 describe.skipIf(!hasDb)("seed", () => {
+  it("does not re-add products the admin deleted", async () => {
+    const admin = await makeUser("admin");
+    const p = await db.query.products.findFirst({ where: eq(products.slug, "design-tool-subscription") });
+    expect(await deleteProduct(p!.id, admin)).toBe("deleted");
+    await seed(process.env.TEST_DATABASE_URL!);
+    expect(await db.query.products.findFirst({ where: eq(products.slug, "design-tool-subscription") })).toBeUndefined();
+  });
+
   it("is idempotent and never overwrites admin edits", async () => {
     const before = await Promise.all([db.select({ n: count() }).from(products), db.select({ n: count() }).from(productPackages), db.select({ n: count() }).from(categories)]);
     await db.update(products).set({ nameEn: "Admin edited" }).where(eq(products.slug, "poster-design"));

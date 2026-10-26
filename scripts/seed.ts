@@ -6,9 +6,9 @@ import * as schema from "../src/lib/db/schema";
 import { storeSettingsSchema } from "../src/lib/services/settings";
 
 /*
- * Idempotent seed. Every insert uses ON CONFLICT DO NOTHING on a natural key
- * (slug / code / settings key), so re-running never duplicates rows and never
- * overwrites changes made from the admin dashboard.
+ * Idempotent seed: it only runs on an empty store (no settings row yet), and every
+ * insert uses ON CONFLICT DO NOTHING on a natural key. Re-running it never
+ * duplicates rows, never overwrites admin edits and never re-adds deleted items.
  *
  * ALL PRODUCTS BELOW ARE SAMPLES (isSample = true). Their prices are
  * placeholders, not confirmed offers — the storefront labels them as such.
@@ -455,6 +455,13 @@ export async function seed(url: string) {
   const db = drizzle({ client: pool, schema });
   try {
     await db.transaction(async (tx) => {
+      // The settings row is written at the end of the first seed. Once it exists the store is
+      // live, so nothing is re-added: deleting a sample product or category must stick.
+      const seeded = await tx.query.storeSettings.findFirst({ where: eq(schema.storeSettings.key, "store") });
+      if (seeded) {
+        console.log("Seed skipped: store already initialized.");
+        return;
+      }
       await tx.insert(schema.categories).values(categories).onConflictDoNothing({ target: schema.categories.slug });
       const cats = await tx.select({ id: schema.categories.id, slug: schema.categories.slug }).from(schema.categories);
       const catId = new Map(cats.map((c) => [c.slug, c.id]));

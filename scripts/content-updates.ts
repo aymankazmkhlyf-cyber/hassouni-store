@@ -282,7 +282,84 @@ async function catalogV1(tx: Tx) {
     .where(inArray(schema.products.slug, ["social-post-design", "ad-banner-design", "poster-design"]));
 }
 
-const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [{ id: "2026-10-26-catalog-v1", run: catalogV1 }];
+/** Owner round 2: TikTok views pricing, real payment details, hide unpriced samples. */
+async function catalogV2(tx: Tx) {
+  const views = await tx.query.products.findFirst({ where: eq(schema.products.slug, "tiktok-views") });
+  if (views) {
+    await tx
+      .update(schema.products)
+      .set({
+        pricingMode: "package",
+        unitPrice: null,
+        compareAtPrice: null,
+        minQuantity: 1,
+        maxQuantity: 10,
+        isSample: false,
+        isActive: true,
+        summaryAr: "كل 1,000 مشاهدة بـ 1,000 دينار.",
+        summaryEn: "1,000 IQD per 1,000 views.",
+        descriptionAr: "اختر الباقة وأدخل رابط الفيديو العام على تيك توك.",
+        descriptionEn: "Choose a package and enter the public TikTok video link.",
+      })
+      .where(eq(schema.products.id, views.id));
+    await tx.delete(schema.priceTiers).where(eq(schema.priceTiers.productId, views.id));
+    await tx.delete(schema.productPackages).where(eq(schema.productPackages.productId, views.id));
+    await tx.insert(schema.productPackages).values(packs(SIZES, 1000, "مشاهدة", "views").map((p, i) => ({ ...p, productId: views.id, sortOrder: i })));
+  }
+
+  // Not offered by the store: delete, or deactivate if an order already references it.
+  const music = await tx.query.products.findFirst({ where: eq(schema.products.slug, "music-app-subscription") });
+  if (music) {
+    const used = await tx.query.orderItems.findFirst({ where: eq(schema.orderItems.productId, music.id) });
+    if (used) await tx.update(schema.products).set({ isActive: false, isFeatured: false }).where(eq(schema.products.id, music.id));
+    else await tx.delete(schema.products).where(eq(schema.products.id, music.id));
+  }
+
+  // Samples without a confirmed price are hidden until the owner sets real prices in the dashboard.
+  await tx
+    .update(schema.products)
+    .set({ isActive: false, isFeatured: false })
+    .where(inArray(schema.products.slug, ["free-fire-diamonds", "design-tool-subscription", "business-profile-setup"]));
+
+  const methods: { code: string; nameAr: string; nameEn: string; accountDetails: string; instructionsAr: string; instructionsEn: string }[] = [
+    {
+      code: "zain_cash",
+      nameAr: "زين كاش",
+      nameEn: "Zain Cash",
+      accountDetails: "07757382822",
+      instructionsAr: "حوّل المبلغ المطلوب إلى رقم زين كاش 07757382822، ثم أرسل رقم العملية أو صورة الإيصال من صفحة الطلب.",
+      instructionsEn: "Transfer the amount due to Zain Cash number 07757382822, then send the transaction number or a receipt photo from the order page.",
+    },
+    {
+      code: "asiacell",
+      nameAr: "آسياسيل",
+      nameEn: "AsiaCell",
+      accountDetails: "07757382822",
+      instructionsAr: "حوّل المبلغ (رصيد آسياسيل) إلى الرقم 07757382822، ثم أرسل لقطة شاشة للتحويل من صفحة الطلب.",
+      instructionsEn: "Transfer the amount (AsiaCell credit) to 07757382822, then send a screenshot of the transfer from the order page.",
+    },
+    {
+      code: "mastercard",
+      nameAr: "ماستركارد",
+      nameEn: "Mastercard",
+      accountDetails: "2025988359",
+      instructionsAr: "حوّل المبلغ إلى رقم الماستر كارد 2025988359 من تطبيق مصرفك، ثم أرسل صورة الإيصال من صفحة الطلب. لا تشارك رقم بطاقتك أو الرمز السري مع أي أحد.",
+      instructionsEn: "Transfer the amount to Mastercard number 2025988359 from your banking app, then send the receipt photo from the order page. Never share your own card number or PIN with anyone.",
+    },
+  ];
+  for (const m of methods) {
+    await tx
+      .update(schema.paymentMethods)
+      // Either a transaction number or a receipt photo is enough.
+      .set({ ...m, isEnabled: true, requiresReference: false, allowsReceipt: true })
+      .where(eq(schema.paymentMethods.code, m.code));
+  }
+}
+
+const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
+  { id: "2026-10-26-catalog-v1", run: catalogV1 },
+  { id: "2026-10-26-catalog-v2", run: catalogV2 },
+];
 
 const KEY = "content_updates";
 
