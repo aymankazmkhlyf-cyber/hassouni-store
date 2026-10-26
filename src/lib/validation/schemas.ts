@@ -102,7 +102,7 @@ export const customRequestSchema = z.object({
   name: trimmed(80).min(2, "validation"),
   phone: phoneSchema,
   email: optionalEmail,
-  serviceType: z.enum(["social", "promotion", "accounts", "numbers", "gaming", "subscription", "design", "other"]),
+  serviceType: z.enum(["social", "promotion", "accounts", "numbers", "gaming", "subscription", "design", "exchange", "other"]),
   description: trimmed(3000).min(10, "validation"),
   quantity: z.union([z.literal("").transform(() => null), z.coerce.number().int().min(1).max(10_000_000)]),
   budget: z.union([z.literal("").transform(() => null), z.coerce.number().int().min(0).max(1_000_000_000)]),

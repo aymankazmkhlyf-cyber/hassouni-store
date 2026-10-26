@@ -134,7 +134,7 @@ export function CustomRequestForm({
   s: Record<"name" | "phone" | "email" | "serviceType" | "description" | "quantity" | "budget" | "referenceUrl" | "notes" | "submit" | "submitting" | "success" | "optional" | "home", string>;
   types: Record<string, string>;
   errors: Errors;
-  defaults: { name: string; phone: string; email: string };
+  defaults: { name: string; phone: string; email: string; serviceType?: string };
 }) {
   const uid = useId();
   const { state, action, onSubmit, pending } = useActionForm(customRequestAction, {});
@@ -164,7 +164,7 @@ export function CustomRequestForm({
         {f(
           "serviceType",
           s.serviceType,
-          <Select {...aria(`${uid}-serviceType`, fe.serviceType)} name="serviceType" required defaultValue="social">
+          <Select {...aria(`${uid}-serviceType`, fe.serviceType)} name="serviceType" required defaultValue={defaults.serviceType && defaults.serviceType in types ? defaults.serviceType : "social"}>
             {Object.entries(types).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}

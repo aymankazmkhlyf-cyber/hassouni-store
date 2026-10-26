@@ -283,6 +283,7 @@ const en: Dictionary = {
       gaming: "Game top-up (Ludo and others)",
       subscription: "Monthly / yearly subscription (iPhone Plus, etc.)",
       design: "Design (processions, Husseiniyas, and more)",
+      exchange: "Balance exchange (AsiaCell / Zain Cash / Mastercard)",
       other: "Other",
     },
   },

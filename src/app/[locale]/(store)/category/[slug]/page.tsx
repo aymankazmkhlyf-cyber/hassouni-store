@@ -37,6 +37,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const result = await listProducts({ categoryId: category.id, sort, page: pageNumber(query.page) });
   const name = locale === "ar" ? category.nameAr : category.nameEn;
   const isCustom = category.slug === "custom";
+  // Categories handled on request (no fixed-price products yet) link straight to a prefilled request.
+  const requestType: Record<string, string> = { "balance-exchange": "exchange", "accounts-numbers": "accounts", subscriptions: "subscription", gaming: "gaming", design: "design", "social-media": "social" };
+  const requestHref = `/${locale}/custom-request${requestType[category.slug] ? `?type=${requestType[category.slug]}` : ""}`;
 
   return (
     <>
@@ -50,7 +53,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               icon="wand"
               title={t.custom.title}
               body={t.custom.body}
-              action={<ButtonLink href={`/${locale}/custom-request`}>{t.nav.customRequest}</ButtonLink>}
+              action={<ButtonLink href={requestHref}>{t.nav.customRequest}</ButtonLink>}
             />
           </div>
         ) : null}
@@ -60,7 +63,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             <ProductGrid items={result.items} locale={locale} t={t} />
           </>
         ) : isCustom ? null : (
-          <EmptyState title={t.shop.empty} action={<ButtonLink href={`/${locale}/services`} variant="secondary">{t.cart.continue}</ButtonLink>} />
+          <EmptyState
+            icon={category.icon as "wand"}
+            title={name}
+            body={locale === "ar" ? category.descriptionAr : category.descriptionEn}
+            action={<ButtonLink href={requestHref}>{t.nav.customRequest}</ButtonLink>}
+          />
         )}
         <Pagination page={result.page} pages={result.pages} basePath={`/${locale}/category/${category.slug}`} params={{ sort }} t={t} />
       </div>

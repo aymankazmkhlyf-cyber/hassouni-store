@@ -13,7 +13,7 @@ import * as schema from "../src/lib/db/schema";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-type Pkg = { labelAr: string; labelEn: string; price: number };
+type Pkg = { labelAr: string; labelEn: string; price: number; compareAtPrice?: number | null };
 type Field = Omit<typeof schema.productFields.$inferInsert, "productId" | "sortOrder">;
 
 type ProductSpec = {
@@ -31,7 +31,7 @@ type ProductSpec = {
   isFeatured: boolean;
   sortOrder: number;
   fields: Field[];
-} & ({ mode: "package"; packages: Pkg[]; maxPackages: number } | { mode: "unit"; unitPrice: number; min: number; max: number });
+} & ({ mode: "package"; packages: Pkg[]; maxPackages: number } | { mode: "unit"; unitPrice: number; compareAtPrice?: number | null; min: number; max: number });
 
 const n = (x: number) => x.toLocaleString("en-US");
 
@@ -45,6 +45,52 @@ const noPassword = {
   helpEn: "The account must be public. We never ask for your password.",
 };
 const SIZES = [1000, 2000, 3000, 5000, 10000];
+
+/** Inserts or updates products by slug, replacing their packages, tiers and fields. */
+async function upsertProducts(tx: Tx, products: ProductSpec[]) {
+  const cats = await tx.select({ id: schema.categories.id, slug: schema.categories.slug }).from(schema.categories);
+  const catId = new Map(cats.map((c) => [c.slug, c.id]));
+
+  for (const spec of products) {
+    const categoryId = catId.get(spec.category);
+    if (!categoryId) throw new Error(`category ${spec.category} missing`);
+    const values = {
+      categoryId,
+      slug: spec.slug,
+      nameAr: spec.nameAr,
+      nameEn: spec.nameEn,
+      summaryAr: spec.summaryAr,
+      summaryEn: spec.summaryEn,
+      descriptionAr: spec.descriptionAr,
+      descriptionEn: spec.descriptionEn,
+      icon: spec.icon,
+      deliveryTimeAr: spec.deliveryTimeAr,
+      deliveryTimeEn: spec.deliveryTimeEn,
+      isFeatured: spec.isFeatured,
+      isActive: true,
+      isSample: false,
+      sortOrder: spec.sortOrder,
+      compareAtPrice: spec.mode === "unit" ? (spec.compareAtPrice ?? null) : null,
+      ...(spec.mode === "package"
+        ? { pricingMode: "package" as const, unitPrice: null, minQuantity: 1, maxQuantity: spec.maxPackages }
+        : { pricingMode: "unit" as const, unitPrice: spec.unitPrice, minQuantity: spec.min, maxQuantity: spec.max }),
+    };
+    const existing = await tx.query.products.findFirst({ where: eq(schema.products.slug, spec.slug) });
+    const id = existing
+      ? (await tx.update(schema.products).set(values).where(eq(schema.products.id, existing.id)).returning({ id: schema.products.id }))[0]!.id
+      : (await tx.insert(schema.products).values(values).returning({ id: schema.products.id }))[0]!.id;
+
+    // Replace pricing and fields. Past order items keep their own name/price snapshots.
+    await tx.delete(schema.productPackages).where(eq(schema.productPackages.productId, id));
+    await tx.delete(schema.priceTiers).where(eq(schema.priceTiers.productId, id));
+    await tx.delete(schema.productFields).where(eq(schema.productFields.productId, id));
+    if (spec.mode === "package") {
+      await tx.insert(schema.productPackages).values(spec.packages.map((p, i) => ({ ...p, productId: id, sortOrder: i })));
+    }
+    await tx.insert(schema.productFields).values(spec.fields.map((f, i) => ({ ...f, productId: id, sortOrder: i })));
+  }
+
+}
 
 /** Updates owner-provided pricing and sets which products are confirmed (not samples). */
 async function catalogV1(tx: Tx) {
@@ -233,47 +279,7 @@ async function catalogV1(tx: Tx) {
     },
   ];
 
-  const cats = await tx.select({ id: schema.categories.id, slug: schema.categories.slug }).from(schema.categories);
-  const catId = new Map(cats.map((c) => [c.slug, c.id]));
-
-  for (const spec of products) {
-    const categoryId = catId.get(spec.category);
-    if (!categoryId) throw new Error(`category ${spec.category} missing`);
-    const values = {
-      categoryId,
-      slug: spec.slug,
-      nameAr: spec.nameAr,
-      nameEn: spec.nameEn,
-      summaryAr: spec.summaryAr,
-      summaryEn: spec.summaryEn,
-      descriptionAr: spec.descriptionAr,
-      descriptionEn: spec.descriptionEn,
-      icon: spec.icon,
-      deliveryTimeAr: spec.deliveryTimeAr,
-      deliveryTimeEn: spec.deliveryTimeEn,
-      isFeatured: spec.isFeatured,
-      isActive: true,
-      isSample: false,
-      sortOrder: spec.sortOrder,
-      compareAtPrice: null,
-      ...(spec.mode === "package"
-        ? { pricingMode: "package" as const, unitPrice: null, minQuantity: 1, maxQuantity: spec.maxPackages }
-        : { pricingMode: "unit" as const, unitPrice: spec.unitPrice, minQuantity: spec.min, maxQuantity: spec.max }),
-    };
-    const existing = await tx.query.products.findFirst({ where: eq(schema.products.slug, spec.slug) });
-    const id = existing
-      ? (await tx.update(schema.products).set(values).where(eq(schema.products.id, existing.id)).returning({ id: schema.products.id }))[0]!.id
-      : (await tx.insert(schema.products).values(values).returning({ id: schema.products.id }))[0]!.id;
-
-    // Replace pricing and fields. Past order items keep their own name/price snapshots.
-    await tx.delete(schema.productPackages).where(eq(schema.productPackages.productId, id));
-    await tx.delete(schema.priceTiers).where(eq(schema.priceTiers.productId, id));
-    await tx.delete(schema.productFields).where(eq(schema.productFields.productId, id));
-    if (spec.mode === "package") {
-      await tx.insert(schema.productPackages).values(spec.packages.map((p, i) => ({ ...p, productId: id, sortOrder: i })));
-    }
-    await tx.insert(schema.productFields).values(spec.fields.map((f, i) => ({ ...f, productId: id, sortOrder: i })));
-  }
+  await upsertProducts(tx, products);
 
   // The owner approved the existing design prices: they are no longer samples.
   await tx
@@ -356,9 +362,230 @@ async function catalogV2(tx: Tx) {
   }
 }
 
+/** A real 5% promotional discount: the customer pays 95%; the owner's list price is shown struck through. */
+const promo = (price: number) => ({ price: Math.round(price * 0.95), compareAtPrice: price });
+
+const emailField = (ar: string, en: string): Field => ({
+  key: "account_email",
+  labelAr: ar,
+  labelEn: en,
+  helpAr: "نحتاج البريد فقط. لن نطلب كلمة المرور أبداً.",
+  helpEn: "We only need the email. We never ask for your password.",
+  type: "text",
+  required: true,
+  maxLength: 120,
+});
+const telegramUser: Field = {
+  key: "telegram_username",
+  labelAr: "معرّف تلكرام (username)",
+  labelEn: "Telegram username",
+  helpAr: "مثال: @username — لن نطلب رمز التحقق أو كلمة المرور.",
+  helpEn: "Example: @username — we never ask for a login code or password.",
+  type: "text",
+  required: true,
+  maxLength: 40,
+};
+const subscriptionNote = {
+  ar: "\n\nيتم التفعيل بالتنسيق مع الدعم بعد تأكيد الدفع. لا نطلب كلمة المرور أو رمز التحقق أبداً.",
+  en: "\n\nActivation is arranged with support after payment is confirmed. We never ask for your password or verification code.",
+};
+
+/** Owner round 3: full catalog with Ludo, Facebook, subscriptions, Telegram, promotion, designs, exchange. */
+async function catalogV3(tx: Tx) {
+  // Categories: clearer names, a new balance-exchange category, and a deliberate order.
+  const cats: (typeof schema.categories.$inferInsert)[] = [
+    { slug: "social-media", nameAr: "خدمات السوشل ميديا", nameEn: "Social Media Services", descriptionAr: "متابعين، لايكات، مشاهدات وترويج لإنستغرام وتيك توك وفيسبوك وتلكرام.", descriptionEn: "Followers, likes, views and promotion for Instagram, TikTok, Facebook and Telegram.", icon: "users", sortOrder: 10 },
+    { slug: "gaming", nameAr: "شحن الألعاب", nameEn: "Game Top-ups", descriptionAr: "شدات ببجي وألماس وذهب لودو ستار برقم اللاعب فقط. حسابات بيس تبدأ من 10,000 دينار عبر طلب خدمة خاصة.", descriptionEn: "PUBG UC and Ludo Star diamonds and gold using your player ID only. PES accounts from 10,000 IQD via a custom request.", icon: "gamepad", sortOrder: 20 },
+    { slug: "subscriptions", nameAr: "الاشتراكات الرقمية", nameEn: "Digital Subscriptions", descriptionAr: "ChatGPT وGemini وClaude وتلكرام بريميوم واشتراك iPhone Plus.", descriptionEn: "ChatGPT, Gemini, Claude, Telegram Premium and iPhone Plus.", icon: "tv", sortOrder: 30 },
+    { slug: "design", nameAr: "التصاميم", nameEn: "Design", descriptionAr: "تصاميم سوشل ميديا، بنرات، بوسترات، وتصاميم المواكب والحسينيات.", descriptionEn: "Social media designs, banners, posters, and designs for processions and Husseiniyas.", icon: "palette", sortOrder: 40 },
+    { slug: "accounts-numbers", nameAr: "الأرقام والحسابات", nameEn: "Numbers & Accounts", descriptionAr: "أرقام لتفعيل واتساب وتلكرام وتجهيز الحسابات حسب الطلب. للاستخدام المشروع فقط.", descriptionEn: "Numbers for WhatsApp and Telegram activation and account setup on request. Lawful use only.", icon: "phone", sortOrder: 50 },
+    { slug: "balance-exchange", nameAr: "تبديل الرصيد", nameEn: "Balance Exchange", descriptionAr: "تبديل بين آسياسيل وزين كاش وماستر كارد بكل الاتجاهات. اطلب الخدمة واكتب المبلغ والاتجاه، ونرد عليك بالسعر.", descriptionEn: "Exchange between AsiaCell, Zain Cash and Mastercard in any direction. Request it with the amount and direction and we reply with the rate.", icon: "card", sortOrder: 55 },
+    { slug: "custom", nameAr: "خدمات خاصة", nameEn: "Custom Services", descriptionAr: "أي خدمة غير موجودة؟ اطلبها ونرد عليك بعرض.", descriptionEn: "Need something not listed? Request it and we will reply with an offer.", icon: "wand", sortOrder: 60 },
+  ];
+  for (const c of cats) {
+    await tx.insert(schema.categories).values(c).onConflictDoUpdate({
+      target: schema.categories.slug,
+      set: { nameAr: c.nameAr, nameEn: c.nameEn, descriptionAr: c.descriptionAr, descriptionEn: c.descriptionEn, icon: c.icon, sortOrder: c.sortOrder, isActive: true },
+    });
+  }
+
+  // Facebook: 1,000 = 3,000, 2,000 = 5,000, then +2,000 IQD per extra 1,000.
+  const fbPrice = (k: number) => 3000 + (k / 1000 - 1) * 2000;
+  const products: ProductSpec[] = [
+    {
+      slug: "facebook-followers", category: "social-media",
+      nameAr: "متابعين فيسبوك", nameEn: "Facebook Followers",
+      summaryAr: "1,000 متابع بـ 3,000 دينار فقط.", summaryEn: "1,000 followers for just 3,000 IQD.",
+      descriptionAr: "اختر الباقة وأدخل رابط صفحتك أو حسابك العام على فيسبوك. يبدأ التنفيذ بعد تأكيد الدفع.\n\nلا نطلب كلمة المرور أبداً.",
+      descriptionEn: "Choose a package and enter your public Facebook page or profile link. Work starts after payment is confirmed.\n\nWe never ask for your password.",
+      icon: "users", deliveryTimeAr: "من 1 إلى 48 ساعة", deliveryTimeEn: "1 to 48 hours", isFeatured: false, sortOrder: 12,
+      mode: "package", maxPackages: 10,
+      packages: SIZES.map((k) => ({ labelAr: `${n(k)} متابع`, labelEn: `${n(k)} followers`, price: fbPrice(k) })),
+      fields: [{ key: "profile_url", labelAr: "رابط الصفحة أو الحساب", labelEn: "Page or profile link", type: "url", required: true, maxLength: 300, ...noPassword }],
+    },
+    {
+      slug: "social-promotion", category: "social-media",
+      nameAr: "ترويج ممول (إنستغرام / تيك توك / فيسبوك)", nameEn: "Paid Promotion (Instagram / TikTok / Facebook)",
+      summaryAr: "باقة البداية بـ 10,000 دينار، والحملات الأكبر حسب الطلب.", summaryEn: "Starter package 10,000 IQD; bigger campaigns on request.",
+      descriptionAr: "نروّج منشورك أو حسابك للجمهور اللي تختاره. باقة البداية بـ 10,000 دينار، وكل 10,000 إضافية تكبّر الحملة (الكمية = عدد الباقات).\n\nللحملات الخاصة اطلب «خدمة خاصة» ونرسل لك عرضاً.",
+      descriptionEn: "We promote your post or account to the audience you choose. The starter package is 10,000 IQD; each extra 10,000 grows the campaign (quantity = number of packages).\n\nFor special campaigns, send a custom request and we will send an offer.",
+      icon: "megaphone", deliveryTimeAr: "تبدأ الحملة خلال 24 ساعة", deliveryTimeEn: "Campaign starts within 24 hours", isFeatured: false, sortOrder: 30,
+      mode: "unit", unitPrice: 10000, min: 1, max: 20,
+      fields: [
+        { key: "platform", labelAr: "المنصة", labelEn: "Platform", type: "select", required: true, maxLength: 20, options: [
+          { value: "instagram", labelAr: "إنستغرام", labelEn: "Instagram" },
+          { value: "tiktok", labelAr: "تيك توك", labelEn: "TikTok" },
+          { value: "facebook", labelAr: "فيسبوك", labelEn: "Facebook" },
+        ] },
+        { key: "post_url", labelAr: "رابط المنشور أو الحساب", labelEn: "Post or account link", type: "url", required: true, maxLength: 300 },
+        { key: "audience", labelAr: "الجمهور المستهدف (المدينة، العمر، الاهتمامات)", labelEn: "Target audience (city, age, interests)", type: "textarea", required: false, maxLength: 1000 },
+      ],
+    },
+    {
+      slug: "pubg-mobile-uc", category: "gaming",
+      nameAr: "شدات ببجي موبايل (UC)", nameEn: "PUBG Mobile UC",
+      summaryAr: "خصم 5% على كل الباقات — شحن برقم اللاعب فقط.", summaryEn: "5% off every package — top-up with your player ID only.",
+      descriptionAr: "اختر الباقة وأدخل رقم اللاعب (Player ID) بدقة. لا نطلب كلمة مرور الحساب أو تسجيل الدخول.\n\nتأكد من رقم اللاعب قبل الطلب؛ الشحن لرقم خاطئ قد لا يكون قابلاً للاسترجاع.",
+      descriptionEn: "Choose a package and enter your exact Player ID. We never ask for your account password or login.\n\nDouble-check the ID; top-ups sent to a wrong ID may not be refundable.",
+      icon: "gamepad", deliveryTimeAr: "من 15 دقيقة إلى 6 ساعات بعد تأكيد الدفع", deliveryTimeEn: "15 minutes to 6 hours after payment confirmation", isFeatured: true, sortOrder: 10,
+      mode: "package", maxPackages: 10,
+      packages: ([[24, 1000], [48, 2000], [96, 4000], [144, 5000], [248, 8000], [500, 14000], [852, 25000]] as const).map(([uc, p]) => ({ labelAr: `${uc} شدة`, labelEn: `${uc} UC`, ...promo(p) })),
+      fields: [
+        { key: "player_id", labelAr: "رقم اللاعب (Player ID)", labelEn: "Player ID", helpAr: "تجده في ملفك الشخصي داخل اللعبة.", helpEn: "Found on your in-game profile.", type: "number", required: true, maxLength: 20 },
+        { key: "player_name", labelAr: "اسم اللاعب (للتأكيد)", labelEn: "Player name (for verification)", type: "text", required: false, maxLength: 40 },
+      ],
+    },
+    ...(["diamonds", "gold"] as const).map((kind, idx): ProductSpec => ({
+      slug: `ludo-star-${kind}`, category: "gaming",
+      nameAr: kind === "diamonds" ? "لودو ستار — ألماس" : "لودو ستار — ذهب",
+      nameEn: kind === "diamonds" ? "Ludo Star — Diamonds" : "Ludo Star — Gold",
+      summaryAr: "خصم 5% على كل الباقات — شحن برقم اللاعب.", summaryEn: "5% off every package — top-up with your player ID.",
+      descriptionAr: "اختر الباقة وأدخل رقم اللاعب (ID) في لودو ستار. لا نطلب كلمة المرور أو تسجيل الدخول.",
+      descriptionEn: "Choose a package and enter your Ludo Star player ID. We never ask for your password or login.",
+      icon: kind === "diamonds" ? "gem" : "spark", deliveryTimeAr: "من 15 دقيقة إلى 6 ساعات بعد تأكيد الدفع", deliveryTimeEn: "15 minutes to 6 hours after payment confirmation",
+      isFeatured: kind === "diamonds", sortOrder: 20 + idx, mode: "package", maxPackages: 10,
+      packages: (kind === "diamonds"
+        ? [[405, 3000], [810, 4000], [2280, 10000], [5080, 20000]]
+        : [[33340, 3000], [66680, 5000], [219500, 10000], [1443000, 20000]]
+      ).map(([q, p]) => ({ labelAr: `${n(q!)} ${kind === "diamonds" ? "ألماسة" : "ذهب"}`, labelEn: `${n(q!)} ${kind === "diamonds" ? "diamonds" : "gold"}`, ...promo(p!) })),
+      fields: [
+        { key: "player_id", labelAr: "رقم اللاعب (ID)", labelEn: "Player ID", helpAr: "تجده في ملفك الشخصي داخل اللعبة.", helpEn: "Found on your in-game profile.", type: "number", required: true, maxLength: 20 },
+        { key: "player_name", labelAr: "اسم اللاعب (للتأكيد)", labelEn: "Player name (for verification)", type: "text", required: false, maxLength: 40 },
+      ],
+    })),
+    {
+      slug: "chatgpt-plus", category: "subscriptions",
+      nameAr: "اشتراك ChatGPT Plus", nameEn: "ChatGPT Plus Subscription",
+      summaryAr: "الاشتراك الاحترافي — 30,000 دينار.", summaryEn: "The pro plan — 30,000 IQD.",
+      descriptionAr: "اشتراك ChatGPT Plus بمميزات احترافية أعلى من اشتراك Go." + subscriptionNote.ar,
+      descriptionEn: "ChatGPT Plus with more advanced features than the Go plan." + subscriptionNote.en,
+      icon: "chat", deliveryTimeAr: "خلال 24 ساعة", deliveryTimeEn: "Within 24 hours", isFeatured: true, sortOrder: 10,
+      mode: "package", maxPackages: 3, packages: [{ labelAr: "شهر واحد", labelEn: "1 month", price: 30000 }],
+      fields: [emailField("بريد حساب ChatGPT", "ChatGPT account email")],
+    },
+    {
+      slug: "chatgpt-go", category: "subscriptions",
+      nameAr: "اشتراك ChatGPT Go", nameEn: "ChatGPT Go Subscription",
+      summaryAr: "اشتراك اقتصادي — 10,000 دينار.", summaryEn: "Budget plan — 10,000 IQD.",
+      descriptionAr: "اشتراك ChatGPT Go بسعر أقل ومميزات أقل من Plus." + subscriptionNote.ar,
+      descriptionEn: "ChatGPT Go: lower price, fewer features than Plus." + subscriptionNote.en,
+      icon: "chat", deliveryTimeAr: "خلال 24 ساعة", deliveryTimeEn: "Within 24 hours", isFeatured: false, sortOrder: 11,
+      mode: "package", maxPackages: 3, packages: [{ labelAr: "شهر واحد", labelEn: "1 month", price: 10000 }],
+      fields: [emailField("بريد حساب ChatGPT", "ChatGPT account email")],
+    },
+    {
+      slug: "gemini", category: "subscriptions",
+      nameAr: "اشتراك Gemini", nameEn: "Gemini Subscription",
+      summaryAr: "شهر بـ 5,000 أو سنة بـ 25,000 دينار.", summaryEn: "1 month 5,000 or 1 year 25,000 IQD.",
+      descriptionAr: "اشتراك Gemini من Google." + subscriptionNote.ar,
+      descriptionEn: "Google Gemini subscription." + subscriptionNote.en,
+      icon: "spark", deliveryTimeAr: "خلال 24 ساعة", deliveryTimeEn: "Within 24 hours", isFeatured: false, sortOrder: 12,
+      mode: "package", maxPackages: 3, packages: [{ labelAr: "شهر واحد", labelEn: "1 month", price: 5000 }, { labelAr: "سنة كاملة", labelEn: "1 year", price: 25000 }],
+      fields: [emailField("بريد حساب Google", "Google account email")],
+    },
+    {
+      slug: "claude", category: "subscriptions",
+      nameAr: "اشتراك Claude (شهري)", nameEn: "Claude Subscription (monthly)",
+      summaryAr: "اشتراك شهري — 30,000 دينار.", summaryEn: "Monthly — 30,000 IQD.",
+      descriptionAr: "اشتراك Claude الشهري." + subscriptionNote.ar,
+      descriptionEn: "Monthly Claude subscription." + subscriptionNote.en,
+      icon: "spark", deliveryTimeAr: "خلال 24 ساعة", deliveryTimeEn: "Within 24 hours", isFeatured: false, sortOrder: 13,
+      mode: "package", maxPackages: 3, packages: [{ labelAr: "شهر واحد", labelEn: "1 month", price: 30000 }],
+      fields: [emailField("بريد حساب Claude", "Claude account email")],
+    },
+    {
+      slug: "iphone-plus-yearly", category: "subscriptions",
+      nameAr: "اشتراك iPhone Plus (سنوي)", nameEn: "iPhone Plus Subscription (yearly)",
+      summaryAr: "سنة كاملة بـ 25,000 دينار.", summaryEn: "A full year for 25,000 IQD.",
+      descriptionAr: "اشتراك iPhone Plus لمدة سنة (لا يتوفر اشتراك شهري)." + subscriptionNote.ar,
+      descriptionEn: "iPhone Plus for one year (no monthly plan available)." + subscriptionNote.en,
+      icon: "phone", deliveryTimeAr: "خلال 24 ساعة", deliveryTimeEn: "Within 24 hours", isFeatured: false, sortOrder: 14,
+      mode: "package", maxPackages: 3, packages: [{ labelAr: "سنة كاملة", labelEn: "1 year", price: 25000 }],
+      fields: [emailField("بريد Apple ID", "Apple ID email")],
+    },
+    {
+      slug: "telegram-premium", category: "subscriptions",
+      nameAr: "تلكرام بريميوم (النجمة)", nameEn: "Telegram Premium",
+      summaryAr: "النجمة وأسماء مميزة — من 10,000 دينار للشهر.", summaryEn: "Star badge and name styles — from 10,000 IQD a month.",
+      descriptionAr: "تفعيل تلكرام بريميوم (النجمة، أنماط أسماء مختلفة وباقي المميزات) على حسابك مباشرة بمعرّفك فقط." + subscriptionNote.ar,
+      descriptionEn: "Telegram Premium (star badge, name styles and all premium features) activated on your account using only your username." + subscriptionNote.en,
+      icon: "chat", deliveryTimeAr: "خلال ساعة بعد تأكيد الدفع", deliveryTimeEn: "Within an hour after payment confirmation", isFeatured: true, sortOrder: 20,
+      mode: "package", maxPackages: 3,
+      packages: [
+        { labelAr: "شهر واحد", labelEn: "1 month", price: 10000 },
+        { labelAr: "3 أشهر", labelEn: "3 months", price: 22000 },
+        { labelAr: "6 أشهر", labelEn: "6 months", price: 30000 },
+        { labelAr: "سنة كاملة", labelEn: "1 year", price: 55000 },
+      ],
+      fields: [telegramUser],
+    },
+    {
+      slug: "telegram-stars", category: "subscriptions",
+      nameAr: "نجوم تلكرام", nameEn: "Telegram Stars",
+      summaryAr: "100 نجمة بـ 3,000 دينار — وكميات أكبر حسب الطلب.", summaryEn: "100 Stars for 3,000 IQD — larger amounts on request.",
+      descriptionAr: "نجوم تلكرام ترسل لحسابك بمعرّفك فقط. للكميات الأكبر اطلب «خدمة خاصة».",
+      descriptionEn: "Telegram Stars sent to your account using only your username. For larger amounts, send a custom request.",
+      icon: "spark", deliveryTimeAr: "خلال ساعة بعد تأكيد الدفع", deliveryTimeEn: "Within an hour after payment confirmation", isFeatured: false, sortOrder: 21,
+      mode: "package", maxPackages: 5,
+      packages: [
+        { labelAr: "100 نجمة", labelEn: "100 Stars", price: 3000 },
+        { labelAr: "250 نجمة", labelEn: "250 Stars", price: 8000 },
+        { labelAr: "500 نجمة", labelEn: "500 Stars", price: 15000 },
+      ],
+      fields: [telegramUser],
+    },
+    {
+      slug: "procession-design", category: "design",
+      nameAr: "تصاميم المواكب والحسينيات", nameEn: "Procession & Husseiniya Designs",
+      summaryAr: "5,000 دينار للتصميم الواحد حسب المتطلبات.", summaryEn: "5,000 IQD per design, depending on requirements.",
+      descriptionAr: "تصاميم للمواكب والحسينيات والمناسبات الدينية: بوسترات، لافتات، وتصاميم سوشل ميديا. السعر للتصميم الواحد، والطلبات المعقدة يُتفق عليها مع الدعم.",
+      descriptionEn: "Designs for processions, Husseiniyas and religious occasions: posters, banners and social media designs. Price is per design; complex requests are agreed with support.",
+      icon: "image", deliveryTimeAr: "من 1 إلى 3 أيام", deliveryTimeEn: "1 to 3 days", isFeatured: false, sortOrder: 5,
+      mode: "unit", unitPrice: 5000, min: 1, max: 30,
+      fields: [
+        { key: "brief", labelAr: "تفاصيل التصميم (الاسم، المناسبة، النصوص)", labelEn: "Design details (name, occasion, text)", type: "textarea", required: true, maxLength: 2000 },
+        { key: "reference_url", labelAr: "رابط مرجعي", labelEn: "Reference link", type: "url", required: false, maxLength: 300 },
+      ],
+    },
+  ];
+  await upsertProducts(tx, products);
+
+  // Featured on the homepage: a short, deliberate selection.
+  await tx.update(schema.products).set({ isFeatured: false }).where(inArray(schema.products.slug, ["instagram-likes", "social-post-design"]));
+
+  // Business profile setup: removed for now (deactivated instead if any order references it).
+  const biz = await tx.query.products.findFirst({ where: eq(schema.products.slug, "business-profile-setup") });
+  if (biz) {
+    const used = await tx.query.orderItems.findFirst({ where: eq(schema.orderItems.productId, biz.id) });
+    if (used) await tx.update(schema.products).set({ isActive: false }).where(eq(schema.products.id, biz.id));
+    else await tx.delete(schema.products).where(eq(schema.products.id, biz.id));
+  }
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
+  { id: "2026-10-26-catalog-v3", run: catalogV3 },
 ];
 
 const KEY = "content_updates";
