@@ -13,3 +13,5 @@ npm-debug.log*
 hassouni-store.zip
 marketing/reel-src/*.woff2
 marketing/reel-src/ad-build.html
+marketing/category-ads/*.woff2
+marketing/category-ads/*-build.html
