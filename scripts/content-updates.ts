@@ -362,8 +362,14 @@ async function catalogV2(tx: Tx) {
   }
 }
 
-/** A real 5% promotional discount: the customer pays 95%; the owner's list price is shown struck through. */
-const promo = (price: number) => ({ price: Math.round(price * 0.95), compareAtPrice: price });
+/**
+ * A real ~5% promotional discount, rounded to the nearest 1,000 IQD (the owner wants whole
+ * thousands only). When rounding leaves no discount, the package keeps its list price.
+ */
+function promo(listPrice: number) {
+  const discounted = Math.round((listPrice * 0.95) / 1000) * 1000;
+  return discounted >= 1000 && discounted < listPrice ? { price: discounted, compareAtPrice: listPrice } : { price: listPrice, compareAtPrice: null };
+}
 
 const emailField = (ar: string, en: string): Field => ({
   key: "account_email",
@@ -582,10 +588,29 @@ async function catalogV3(tx: Tx) {
   }
 }
 
+/** Owner round 4: every price must be a whole number of thousands (no 950, 1,500, 2,850 ...). */
+async function catalogV4(tx: Tx) {
+  const promoted = await tx.query.products.findMany({
+    where: inArray(schema.products.slug, ["pubg-mobile-uc", "ludo-star-diamonds", "ludo-star-gold"]),
+    with: { packages: true },
+  });
+  for (const product of promoted) {
+    for (const pkg of product.packages) {
+      const listPrice = pkg.compareAtPrice ?? pkg.price;
+      await tx.update(schema.productPackages).set(promo(listPrice)).where(eq(schema.productPackages.id, pkg.id));
+    }
+    await tx
+      .update(schema.products)
+      .set({ summaryAr: "خصومات على الباقات الكبيرة — شحن برقم اللاعب فقط.", summaryEn: "Discounts on bigger packages — top-up with your player ID only." })
+      .where(eq(schema.products.id, product.id));
+  }
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
   { id: "2026-10-26-catalog-v3", run: catalogV3 },
+  { id: "2026-10-26-catalog-v4", run: catalogV4 },
 ];
 
 const KEY = "content_updates";
