@@ -15,7 +15,7 @@ await cust.getByPlaceholder("اكتب رسالتك…").fill("مرحبا، شل�
 await cust.getByRole("button", { name: "ابدأ المحادثة" }).click();
 await cust.getByText("أهلاً زبون تجربة").waitFor({ timeout: 15000 });
 await cust.getByText("طرق الدفع").waitFor();
-await cust.screenshot({ path: `${D}/chat-customer.png` });
+if (D) await cust.screenshot({ path: `${D}/chat-customer.png` });
 console.log("✓ customer got instant auto-replies");
 
 const adm = await (await b.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
@@ -32,7 +32,7 @@ await adm.getByRole("link", { name: /زبون تجربة/ }).first().click();
 await adm.getByPlaceholder("اكتب ردك…").fill("هلا بيك، الدفع بزين كاش أو آسياسيل 🌹");
 await adm.getByRole("button", { name: "إرسال" }).click();
 await adm.getByText("هلا بيك، الدفع").waitFor();
-await adm.screenshot({ path: `${D}/chat-admin.png` });
+if (D) await adm.screenshot({ path: `${D}/chat-admin.png` });
 console.log("✓ admin replied");
 
 await cust.getByText("هلا بيك، الدفع").waitFor({ timeout: 15000 });
@@ -41,7 +41,7 @@ await cust.getByPlaceholder("اكتب رسالتك…").fill("شكراً");
 await cust.getByRole("button", { name: "إرسال" }).click();
 await adm.getByText("شكراً").waitFor({ timeout: 15000 });
 console.log("✓ customer follow-up reached admin live");
-await cust.screenshot({ path: `${D}/chat-customer2.png` });
+if (D) await cust.screenshot({ path: `${D}/chat-customer2.png` });
 
 // Another visitor cannot see this conversation
 const other = await (await b.newContext()).newPage();
