@@ -11,3 +11,5 @@ next-env.d.ts
 .DS_Store
 npm-debug.log*
 hassouni-store.zip
+marketing/reel-src/*.woff2
+marketing/reel-src/ad-build.html

@@ -1,0 +1,21 @@
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const { chromium } = require("playwright");
+const V = process.argv[2], B = "http://localhost:3001";
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2.4 });
+const p = await ctx.newPage();
+const shot = async (url, name, fn) => { await p.goto(B + url); await p.waitForTimeout(1500); if (fn) await fn(); await p.screenshot({ path: `${V}/${name}.png` }); };
+await shot("/ar", "s-home");
+await shot("/ar/services/pubg-mobile-uc", "s-pubg", async () => { await p.getByText("اختر الباقة", { exact: true }).scrollIntoViewIfNeeded(); await p.mouse.wheel(0, -120); await p.waitForTimeout(400); });
+await shot("/ar/category/subscriptions", "s-subs", async () => { await p.mouse.wheel(0, 330); await p.waitForTimeout(600); });
+await shot("/ar/category/design", "s-design", async () => { await p.mouse.wheel(0, 330); await p.waitForTimeout(600); });
+// live chat with an instant auto-reply
+await p.goto(B + "/ar"); await p.waitForTimeout(800);
+await p.getByRole("button", { name: "الدعم المباشر" }).click();
+await p.getByPlaceholder("اسمك").fill("علي");
+await p.getByPlaceholder("اكتب رسالتك…").fill("هلا، شلون ادفع؟");
+await p.getByRole("button", { name: "ابدأ المحادثة" }).click();
+await p.getByText("طرق الدفع").waitFor(); await p.waitForTimeout(500);
+await p.screenshot({ path: `${V}/s-chat.png` });
+await b.close();
