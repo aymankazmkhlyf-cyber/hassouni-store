@@ -167,6 +167,21 @@
   to { opacity: 1; transform: none; }
 }
 
+
+/* ---------------- Product artwork motion ---------------- */
+@keyframes art-float { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-10px,0); } }
+@keyframes art-shine-ltr { from { transform: translateX(0) skewX(-20deg); } to { transform: translateX(400%) skewX(-20deg); } }
+@keyframes art-shine-rtl { from { transform: translateX(0) skewX(-20deg); } to { transform: translateX(-400%) skewX(-20deg); } }
+.art-float { animation: art-float 6s ease-in-out infinite; }
+.art-float-slow { animation: art-float 9s ease-in-out infinite reverse; }
+.art-pop { transition: transform 0.35s cubic-bezier(.2,.8,.2,1.4); }
+.group:hover .art-pop, .group:focus-within .art-pop { transform: translateY(-4px) scale(1.06) rotate(-3deg); }
+.group:hover .art-shine, .group:focus-within .art-shine { animation: art-shine-ltr 0.9s ease-out; }
+[dir="rtl"] .group:hover .art-shine, [dir="rtl"] .group:focus-within .art-shine { animation-name: art-shine-rtl; }
+/* Hero artwork on product pages sweeps once on load. */
+.art-hero .art-shine { animation: art-shine-ltr 1.4s 0.3s ease-out both; }
+[dir="rtl"] .art-hero .art-shine { animation-name: art-shine-rtl; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

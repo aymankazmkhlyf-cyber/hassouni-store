@@ -125,6 +125,7 @@ const en: Dictionary = {
     related: "More in this category",
     wasPrice: "Previous price",
     discount: "Off",
+    popular: "Popular",
   },
   cart: {
     title: "Shopping cart",

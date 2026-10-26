@@ -123,6 +123,7 @@ const ar = {
     related: "خدمات أخرى في نفس القسم",
     wasPrice: "السعر السابق",
     discount: "خصم",
+    popular: "الأكثر طلباً",
   },
   cart: {
     title: "سلة المشتريات",

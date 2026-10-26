@@ -5,6 +5,7 @@ import type { ProductCard as ProductCardData } from "@/lib/services/catalog";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { Price } from "@/components/ui/price";
+import { ProductArt } from "./product-art";
 
 export function ProductCard({ p, locale, t }: { p: ProductCardData; locale: Locale; t: Dictionary }) {
   const name = locale === "ar" ? p.nameAr : p.nameEn;
@@ -16,13 +17,10 @@ export function ProductCard({ p, locale, t }: { p: ProductCardData; locale: Loca
           // eslint-disable-next-line @next/next/no-img-element -- DB-backed image route with long cache headers
           <img src={`/api/files/${p.imageFileId}`} alt="" loading="lazy" decoding="async" className="size-full object-cover transition duration-300 group-hover:scale-[1.03]" />
         ) : (
-          <div className="hero-gradient grid-pattern grid size-full place-items-center">
-            <span className="grid size-16 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm">
-              <Icon name={p.icon} className="size-8" />
-            </span>
-          </div>
+          <ProductArt slug={p.slug} icon={p.icon} />
         )}
-        <div className="absolute inset-x-3 top-3 flex flex-wrap gap-1.5">
+        <div className="absolute end-3 top-3 flex flex-wrap justify-end gap-1.5">
+          {p.isFeatured ? <Badge tone="warning" className="shadow-sm">⭐ {t.product.popular}</Badge> : null}
           {p.hasOffer ? <Badge tone="danger">{t.product.discount}</Badge> : null}
           {p.isSample ? <Badge tone="warning">{t.common.sample}</Badge> : null}
         </div>

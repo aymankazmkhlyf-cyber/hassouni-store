@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { RichText } from "@/components/ui/rich-text";
 import { AddToCart, type AddToCartProduct } from "@/components/store/add-to-cart";
+import { ProductArt } from "@/components/store/product-art";
 import { Breadcrumbs, ProductGrid } from "@/components/store/product-card";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
@@ -68,10 +69,8 @@ export default async function ProductPage({ params }: Props) {
               // eslint-disable-next-line @next/next/no-img-element -- DB-backed image route
               <img src={`/api/files/${product.imageFileId}`} alt={name} className="size-full object-cover" />
             ) : (
-              <div className="hero-gradient grid-pattern grid size-full place-items-center">
-                <span className="grid size-24 place-items-center rounded-3xl bg-white/15 text-white ring-1 ring-white/25">
-                  <Icon name={product.icon} className="size-12" />
-                </span>
+              <div className="art-hero size-full">
+                <ProductArt slug={product.slug} icon={product.icon} size="hero" />
               </div>
             )}
           </div>
