@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/* Dark mode is class-based so the user's choice can override the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ */
+/* Design tokens                                                       */
+/* ------------------------------------------------------------------ */
+:root {
+  --bg: #f6f6fb;
+  --bg-elevated: #ffffff;
+  --bg-muted: #eef0f7;
+  --fg: #12121c;
+  --fg-muted: #555a6e;
+  --fg-subtle: #767b90;
+  --border: #e1e3ee;
+  --border-strong: #c9ccdc;
+  --brand: #5a3ff0;
+  --brand-hover: #4a30d8;
+  --brand-fg: #ffffff;
+  --brand-soft: #eeeaff;
+  --brand-soft-fg: #3a24b8;
+  --accent: #0f9f8f;
+  --accent-soft: #dcf7f3;
+  --success: #12804a;
+  --success-soft: #e0f6ea;
+  --warning: #9a5b00;
+  --warning-soft: #fff2d6;
+  --danger: #c42b2b;
+  --danger-soft: #fde7e7;
+  --info: #1f5fbf;
+  --info-soft: #e3eeff;
+  --ring: #5a3ff0;
+  --shadow-color: 230 30% 30%;
+  --hero-from: #5a3ff0;
+  --hero-to: #0f9f8f;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0c0c14;
+  --bg-elevated: #15151f;
+  --bg-muted: #1d1d2a;
+  --fg: #f1f1f7;
+  --fg-muted: #b3b5c7;
+  --fg-subtle: #8f92a6;
+  --border: #2a2a3a;
+  --border-strong: #3a3a4e;
+  --brand: #8b76ff;
+  --brand-hover: #9d8bff;
+  --brand-fg: #0c0c14;
+  --brand-soft: #241d4d;
+  --brand-soft-fg: #cfc6ff;
+  --accent: #2fd1bd;
+  --accent-soft: #0f3330;
+  --success: #46d08a;
+  --success-soft: #0f2e1f;
+  --warning: #f3b544;
+  --warning-soft: #33260b;
+  --danger: #ff7a7a;
+  --danger-soft: #3a1515;
+  --info: #7fb1ff;
+  --info-soft: #14233d;
+  --ring: #8b76ff;
+  --shadow-color: 240 40% 2%;
+  --hero-from: #3b28b0;
+  --hero-to: #0b6f64;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-elevated: var(--bg-elevated);
+  --color-muted: var(--bg-muted);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-fg: var(--brand-soft-fg);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: "Cairo Variable", "Segoe UI", Tahoma, system-ui, sans-serif;
+  --radius-card: 1.25rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    min-height: 100dvh;
+  }
+  /* Latin text reads better slightly tighter. */
+  :lang(en) body { line-height: 1.6; }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+  ::selection { background: var(--brand-soft); color: var(--brand-soft-fg); }
+
+  a { text-underline-offset: 3px; }
+
+  /* Numbers, references and phone numbers stay LTR inside RTL text. */
+  .ltr-nums { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+  input, select, textarea, button { font: inherit; }
+}
+
+@layer components {
+  .shadow-soft { box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 8px 24px -12px hsl(var(--shadow-color) / 0.18); }
+  .shadow-lift { box-shadow: 0 2px 4px hsl(var(--shadow-color) / 0.08), 0 18px 40px -18px hsl(var(--shadow-color) / 0.35); }
+
+  .hero-gradient {
+    background:
+      radial-gradient(120% 120% at 100% 0%, color-mix(in oklab, var(--hero-to) 55%, transparent) 0%, transparent 55%),
+      radial-gradient(120% 120% at 0% 100%, color-mix(in oklab, var(--hero-from) 70%, transparent) 0%, transparent 60%),
+      linear-gradient(135deg, var(--hero-from), color-mix(in oklab, var(--hero-from) 60%, var(--hero-to)));
+  }
+  .grid-pattern {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Both classes on one element: layer the grid lines over the gradient (otherwise one overrides the other). */
+  .hero-gradient.grid-pattern {
+    background:
+      linear-gradient(to right, rgb(255 255 255 / 0.07) 1px, transparent 1px) 0 0 / 28px 28px,
+      linear-gradient(to bottom, rgb(255 255 255 / 0.07) 1px, transparent 1px) 0 0 / 28px 28px,
+      radial-gradient(120% 120% at 100% 0%, color-mix(in oklab, var(--hero-to) 55%, transparent) 0%, transparent 55%),
+      linear-gradient(135deg, var(--hero-from), color-mix(in oklab, var(--hero-from) 60%, var(--hero-to)));
+  }
+
+  .prose-policy h2 { font-size: 1.15rem; font-weight: 700; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+  .prose-policy p { margin-bottom: 0.75rem; color: var(--fg-muted); }
+  .prose-policy ul { margin-bottom: 0.75rem; padding-inline-start: 1.25rem; list-style: disc; color: var(--fg-muted); }
+
+  .animate-in { animation: fade-up 0.35s ease-out both; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
