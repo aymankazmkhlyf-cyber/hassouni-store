@@ -645,12 +645,55 @@ async function catalogV5(tx: Tx) {
   }
 }
 
+/**
+ * Owner round 6: the store cannot deliver extra quantity, so the "bonus" labels are
+ * removed (they promised something that would not be delivered). Instead each package
+ * shows its genuine per-unit saving versus the smallest package, rounded down.
+ */
+async function catalogV6(tx: Tx) {
+  const lines: Record<string, { q: number; price: number; ar: string; en: string }[]> = {
+    "pubg-mobile-uc": ([[24, 1000], [48, 2000], [96, 4000], [144, 5000], [248, 8000], [500, 14000], [852, 25000]] as const).map(([q, price]) => ({ q, price, ar: "شدة", en: "UC" })),
+    "ludo-star-diamonds": ([[405, 3000], [810, 4000], [2280, 10000], [5080, 20000]] as const).map(([q, price]) => ({ q, price, ar: "ألماسة", en: "diamonds" })),
+    "ludo-star-gold": ([[33340, 3000], [66680, 5000], [219500, 10000], [1443000, 20000]] as const).map(([q, price]) => ({ q, price, ar: "ذهب", en: "gold" })),
+  };
+  for (const [slug, packs] of Object.entries(lines)) {
+    const product = await tx.query.products.findFirst({ where: eq(schema.products.slug, slug), with: { packages: true } });
+    if (!product) continue;
+    const base = packs[0]!.price / packs[0]!.q; // IQD per unit in the smallest package
+    const existing = [...product.packages].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+    for (let i = 0; i < packs.length; i++) {
+      const p = packs[i]!;
+      const saving = Math.floor((1 - p.price / p.q / base) * 100);
+      const row = {
+        labelAr: saving >= 10 ? `${n(p.q)} ${p.ar} — وفّر ${saving}%` : `${n(p.q)} ${p.ar}`,
+        labelEn: saving >= 10 ? `${n(p.q)} ${p.en} — save ${saving}%` : `${n(p.q)} ${p.en}`,
+        price: p.price,
+        compareAtPrice: null,
+        isActive: true,
+        sortOrder: i,
+      };
+      const current = existing[i];
+      if (current) await tx.update(schema.productPackages).set(row).where(eq(schema.productPackages.id, current.id));
+      else await tx.insert(schema.productPackages).values({ ...row, productId: product.id });
+    }
+    for (const extra of existing.slice(packs.length)) await tx.delete(schema.productPackages).where(eq(schema.productPackages.id, extra.id));
+    await tx
+      .update(schema.products)
+      .set({
+        summaryAr: "كل ما كبرت الباقة كان سعر الوحدة أرخص — شحن برقم اللاعب فقط.",
+        summaryEn: "The bigger the package, the cheaper each unit — top-up with your player ID only.",
+      })
+      .where(eq(schema.products.id, product.id));
+  }
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
   { id: "2026-10-26-catalog-v3", run: catalogV3 },
   { id: "2026-10-26-catalog-v4", run: catalogV4 },
   { id: "2026-10-26-catalog-v5", run: catalogV5 },
+  { id: "2026-10-26-catalog-v6", run: catalogV6 },
 ];
 
 const KEY = "content_updates";
