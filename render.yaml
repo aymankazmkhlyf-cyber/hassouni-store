@@ -5,7 +5,7 @@ services:
     name: hassouni-store
     runtime: node
     plan: free
-    region: frankfurt # closest Render region to Iraq
+    region: ohio # same region as the Neon database (AWS us-east-2) for low query latency
     buildCommand: npm ci && npm run deploy:build
     startCommand: npm start
     healthCheckPath: /api/health

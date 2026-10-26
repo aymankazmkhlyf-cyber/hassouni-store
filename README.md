@@ -88,7 +88,7 @@ Free tiers have limits and terms that change. Vercel Hobby is officially for non
 
 Vercel's sign-up asks for SMS verification, which is not available for Iraqi numbers. Render works with just a GitHub login:
 
-1. Create a free Postgres database on **neon.tech** (sign in with GitHub, region *Frankfurt*). Copy its connection string.
+1. Create a free Postgres database on **neon.tech** (sign in with GitHub). Keep `region` in `render.yaml` the same as the database region. Copy its connection string.
 2. On **render.com** sign in with GitHub → **New → Blueprint** → choose this repository. `render.yaml` configures everything.
 3. When prompted, fill in `DATABASE_URL`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. `APP_SECRET` is generated automatically.
 4. The first deploy runs `npm run deploy:build` (migrate → seed → create first admin → build). Remove `ADMIN_PASSWORD` afterwards.
