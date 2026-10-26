@@ -15,6 +15,13 @@
       "when": 1793036714079,
       "tag": "0001_support_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793037921480,
+      "tag": "0002_auth_codes",
+      "breakpoints": true
     }
   ]
 }

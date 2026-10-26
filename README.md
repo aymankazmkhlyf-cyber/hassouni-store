@@ -147,6 +147,12 @@ Every admin page **and** every server action checks the permission on the server
 - **Phone alerts via Telegram (optional, free)**: create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN` in the host environment, redeploy, press Start on the bot, then press “Link Telegram” in Admin → Live support. At most one alert per conversation per minute. Without the token, alerts are silently disabled.
 - Rate limits: 5 new chats per hour and 20 messages per 10 minutes per IP. Old chats are deleted by `retention:run` after the retention period.
 
+## 7c. Password change and reset by email code
+
+- **Admin → Password**: current password → a 6-digit code is emailed → code + new password. **Forgot password?** on the admin login does the same without logging in (staff accounts only; unknown emails get the same "code sent" answer).
+- Codes expire after 10 minutes, allow 5 attempts, are single-use, and only an HMAC of the code is stored. Issuing a new code voids the old one. A successful change signs out every session of that account. Sending and verifying are rate-limited.
+- Email goes through **Resend** (`RESEND_API_KEY`, free tier). Without a verified domain Resend only delivers to the address the Resend account was created with, so sign up to Resend with the same email as the admin account (or verify a domain and set `EMAIL_FROM`).
+
 ## 8. Security summary
 
 - Server-side validation (Zod) on every action. All SQL is parameterized through Drizzle, and LIKE wildcards in search are escaped.
@@ -177,7 +183,7 @@ tests/e2e/smoke.mjs  browser: Arabic RTL default, language switch, category nav,
                      admin auth + payment confirmation + completion, CSV, admin pages, dark mode
 ```
 
-At the time of writing: **121 unit/integration tests pass**, the **19-step e2e smoke test passes** with zero browser console errors, and `npm run build` succeeds.
+At the time of writing: **127 unit/integration tests pass**, the **19-step e2e smoke test passes** with zero browser console errors, and `npm run build` succeeds.
 
 ## 10. Before going live — checklist
 

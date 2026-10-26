@@ -13,6 +13,9 @@ export const RATE_LIMITS = {
   paymentProof: { limit: 10, windowSeconds: 60 * 60 },
   customRequest: { limit: 5, windowSeconds: 60 * 60 },
   supportStart: { limit: 5, windowSeconds: 60 * 60 },
+  codeRequestIp: { limit: 5, windowSeconds: 60 * 60 },
+  codeRequestAccount: { limit: 3, windowSeconds: 60 * 60 },
+  codeVerify: { limit: 10, windowSeconds: 15 * 60 },
   supportMessage: { limit: 20, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 

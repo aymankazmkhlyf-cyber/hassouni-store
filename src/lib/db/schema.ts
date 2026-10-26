@@ -69,6 +69,8 @@ export const requestStatus = pgEnum("request_status", ["new", "in_review", "quot
 
 export const historyActor = pgEnum("history_actor", ["customer", "staff", "system"]);
 
+export const authCodePurpose = pgEnum("auth_code_purpose", ["password_reset", "password_change"]);
+
 export const supportSender = pgEnum("support_sender", ["customer", "staff", "bot"]);
 export const supportStatus = pgEnum("support_status", ["open", "closed"]);
 
@@ -107,6 +109,24 @@ export const sessions = pgTable(
     userAgent: text("user_agent"),
   },
   (t) => [index("sessions_user_idx").on(t.userId), index("sessions_expires_idx").on(t.expiresAt)],
+);
+
+/** One-time email codes for password reset / change. Only an HMAC of the code is stored. */
+export const authCodes = pgTable(
+  "auth_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: authCodePurpose("purpose").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("auth_codes_user_idx").on(t.userId, t.purpose)],
 );
 
 /* ------------------------------------------------------------------ */

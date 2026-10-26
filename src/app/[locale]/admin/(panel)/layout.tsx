@@ -29,6 +29,7 @@ export default async function AdminLayout({ children, params }: LocaleParams & {
     { href: `${a}/requests`, label: t.admin.requests, icon: "wand", perm: "requests:manage" },
     { href: `${a}/settings`, label: t.admin.settings, icon: "settings", perm: "settings:write" },
     { href: `${a}/audit`, label: t.admin.audit, icon: "list", perm: "audit:read" },
+    { href: `${a}/password`, label: t.admin.password, icon: "lock", perm: "dashboard:view" },
   ];
   // Hiding links is cosmetic; every page and action re-checks permissions on the server.
   const links = all.filter((l) => hasPermission(user.role, l.perm));
