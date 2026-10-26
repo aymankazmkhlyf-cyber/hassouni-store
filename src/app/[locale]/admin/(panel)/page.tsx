@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { maybeRunMaintenance } from "@/lib/services/maintenance";
 import { requireStaffPage } from "@/lib/auth/current-user";
 import { formatIQD } from "@/lib/domain/money";
 import { formatDateTime } from "@/lib/i18n";
@@ -17,6 +19,7 @@ export default async function AdminDashboard({ params, searchParams }: Props) {
   await requireStaffPage(locale, "dashboard:view");
   const denied = sp((await searchParams).denied) === "1";
   const s = await dashboardStats();
+  after(() => maybeRunMaintenance());
   const a = `/${locale}/admin`;
   const tiles = [
     { label: t.admin.stats.totalOrders, value: s.totalOrders.toLocaleString("en-US"), icon: "receipt", href: `${a}/orders` },

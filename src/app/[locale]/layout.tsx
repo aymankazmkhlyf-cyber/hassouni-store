@@ -4,13 +4,15 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { dirFor } from "@/lib/i18n/config";
 import { resolveLocale, type LocaleParams } from "@/lib/i18n/server";
+import { siteUrl } from "@/lib/server/request";
 
 // Applies the stored/OS theme before first paint to avoid a flash.
 const themeScript = `(function(){try{var t=localStorage.getItem('hds_theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})();`;
 
 export async function generateMetadata({ params }: LocaleParams): Promise<Metadata> {
   const { locale, t } = await resolveLocale(params);
-  const base = process.env.APP_URL ? new URL(process.env.APP_URL) : undefined;
+  const url = await siteUrl();
+  const base = url ? new URL(url) : undefined;
   return {
     metadataBase: base,
     title: { default: t.meta.storeName, template: `%s | ${t.meta.storeName}` },
@@ -19,6 +21,9 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
     alternates: { languages: { ar: "/ar", en: "/en" } },
     openGraph: { siteName: t.meta.storeName, locale: locale === "ar" ? "ar_IQ" : "en_US", type: "website" },
     formatDetection: { telephone: false },
+    appleWebApp: { capable: true, title: t.meta.shortName, statusBarStyle: "default" },
+    icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+    twitter: { card: "summary_large_image" },
   };
 }
 

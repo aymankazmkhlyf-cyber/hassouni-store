@@ -71,7 +71,7 @@ const en: Dictionary = {
     heroBadge: "Digital services in Iraq",
     heroTitle: "All your digital services in one place",
     heroSubtitle:
-      "Social media, game top-ups, digital subscriptions and professional design — order easily, pay with Zain Cash or AsiaCell, and follow your order step by step.",
+      "Followers and likes, PUBG and Ludo top-ups, ChatGPT and Telegram Premium subscriptions, and professional design — pay with Zain Cash, AsiaCell or Mastercard, and chat with us right on the site.",
     heroCta: "Browse services",
     heroSecondary: "Request a custom service",
     featured: "Featured services",

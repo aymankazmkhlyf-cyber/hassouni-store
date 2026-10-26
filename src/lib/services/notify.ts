@@ -48,3 +48,15 @@ export async function findLatestPrivateChat(): Promise<{ id: string; name: strin
   }
   return null;
 }
+
+/** Sends a Telegram alert to the linked staff chat, if one is configured. Never throws. */
+export async function notifyStaff(text: string): Promise<void> {
+  if (!telegramConfigured()) return;
+  try {
+    const { loadSettings } = await import("./settings");
+    const { telegramChatId } = await loadSettings();
+    if (telegramChatId) await sendTelegram(telegramChatId, text);
+  } catch {
+    console.error("staff notification failed");
+  }
+}

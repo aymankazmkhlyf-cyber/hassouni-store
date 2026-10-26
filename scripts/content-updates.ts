@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "../src/lib/db/schema";
+import { defaultPolicies } from "../src/lib/i18n/content";
 
 /*
  * One-time catalog updates supplied by the store owner, applied during deploy
@@ -687,6 +688,27 @@ async function catalogV6(tx: Tx) {
   }
 }
 
+/** Owner round 7: service-specific terms and refund rules — only if the owner never edited the policies. */
+async function catalogV7(tx: Tx) {
+  const [row] = await tx.select().from(schema.storeSettings).where(eq(schema.storeSettings.key, "store")).for("update");
+  if (!row) return;
+  const value = row.value as Record<string, unknown>;
+  if (typeof value.policiesUpdatedAt === "string" && value.policiesUpdatedAt !== "") return;
+  await tx
+    .update(schema.storeSettings)
+    .set({
+      value: {
+        ...value,
+        termsAr: defaultPolicies.termsAr,
+        termsEn: defaultPolicies.termsEn,
+        refundAr: defaultPolicies.refundAr,
+        refundEn: defaultPolicies.refundEn,
+        policiesUpdatedAt: new Date().toISOString(),
+      },
+    })
+    .where(eq(schema.storeSettings.key, "store"));
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
@@ -694,6 +716,7 @@ const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v4", run: catalogV4 },
   { id: "2026-10-26-catalog-v5", run: catalogV5 },
   { id: "2026-10-26-catalog-v6", run: catalogV6 },
+  { id: "2026-10-26-policies-v7", run: catalogV7 },
 ];
 
 const KEY = "content_updates";

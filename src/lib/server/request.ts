@@ -17,3 +17,14 @@ export async function clientIp(): Promise<string> {
 export async function userAgent(): Promise<string | null> {
   return (await headers()).get("user-agent");
 }
+
+/** Public base URL of the site (no trailing slash): APP_URL if set, else the request host. */
+export async function siteUrl(): Promise<string> {
+  const configured = process.env.APP_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!host) return process.env.URL ?? "";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}

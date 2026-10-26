@@ -6,7 +6,7 @@ import { z } from "zod";
 import { assertPermission, AuthError, getCurrentUser } from "@/lib/auth/current-user";
 import { normalizePhone } from "@/lib/domain/phone";
 import { isLocale } from "@/lib/i18n/config";
-import { clientIp } from "@/lib/server/request";
+import { clientIp, siteUrl } from "@/lib/server/request";
 import { consumeRateLimit } from "@/lib/services/rate-limit";
 import { findLatestPrivateChat, sendTelegram, telegramConfigured } from "@/lib/services/notify";
 import { loadSettings, saveSettings } from "@/lib/services/settings";
@@ -32,7 +32,7 @@ export async function sendSupportMessageAction(input: { name?: string; phone?: s
     if (existing) {
       const msg = z.string().trim().min(1).max(MAX_MESSAGE_LENGTH).safeParse(input.message);
       if (!msg.success) return { ok: false, error: "validation" };
-      await addCustomerMessage(existing, msg.data);
+      await addCustomerMessage(existing, msg.data, undefined, { baseUrl: await siteUrl() });
       return { ok: true };
     }
     const parsed = startSchema.safeParse({ ...input, name: input.name ?? "", phone: input.phone ?? "" });
@@ -47,6 +47,7 @@ export async function sendSupportMessageAction(input: { name?: string; phone?: s
       locale: isLocale(parsed.data.locale) ? parsed.data.locale : "ar",
       userId: user?.id ?? null,
       firstMessage: parsed.data.message,
+      baseUrl: await siteUrl(),
     });
     jar.set(SUPPORT_COOKIE, token, {
       httpOnly: true,
@@ -96,7 +97,7 @@ export async function linkTelegramAction(): Promise<LinkTelegramResult> {
   if (!telegramConfigured()) return { ok: false, error: "notConfigured" };
   const chat = await findLatestPrivateChat();
   if (!chat) return { ok: false, error: "noChat" };
-  const sent = await sendTelegram(chat.id, "✅ تم ربط إشعارات الدعم بمتجر حسوني. راح توصلك هنا كل رسالة جديدة من الزبائن.");
+  const sent = await sendTelegram(chat.id, "✅ تم ربط إشعارات متجر حسوني. راح توصلك هنا الطلبات الجديدة، وإثباتات الدفع، ورسائل الدعم من الزبائن.");
   if (!sent) return { ok: false, error: "sendFailed" };
   await saveSettings({ ...(await loadSettings()), telegramChatId: chat.id });
   await audit({ id: user.id, email: user.email, role: user.role }, "support.telegram_link", "settings", "store", {});

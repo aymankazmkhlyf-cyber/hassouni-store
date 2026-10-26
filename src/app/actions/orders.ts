@@ -1,11 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { formatIQD } from "@/lib/domain/money";
+import { notifyStaff } from "@/lib/services/notify";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { checkUpload } from "@/lib/domain/file-signature";
 import { isLocale } from "@/lib/i18n/config";
-import { clientIp } from "@/lib/server/request";
+import { clientIp, siteUrl } from "@/lib/server/request";
 import { getOrderByAccessKey, getOrderForUser, ServiceError, submitPaymentProof } from "@/lib/services/orders";
 import { consumeRateLimit } from "@/lib/services/rate-limit";
 import { paymentProofSchema, trackSchema } from "@/lib/validation/schemas";
@@ -52,6 +55,12 @@ export async function submitProofAction(_prev: ActionState, formData: FormData):
     console.error("payment proof failed", e instanceof Error ? e.message : "unknown");
     return { error: "generic" };
   }
+  const base = await siteUrl();
+  after(() =>
+    notifyStaff(
+      `🧾 إثبات دفع جديد للطلب ${order.reference}\n💰 ${formatIQD(order.total, "ar")} — ${order.paymentMethodNameAr}${parsed.data.customerReference ? `\n🔢 رقم العملية: ${parsed.data.customerReference}` : ""}${receipt ? "\n📎 مع صورة إيصال" : ""}\n\n✅ راجع وأكّد: ${base}/ar/admin/orders/${order.id}`,
+    ),
+  );
   revalidatePath(`/[locale]/orders/[reference]`, "page");
   return { ok: true };
 }

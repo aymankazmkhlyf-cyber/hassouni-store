@@ -153,6 +153,13 @@ Every admin page **and** every server action checks the permission on the server
 - Codes expire after 10 minutes, allow 5 attempts, are single-use, and only an HMAC of the code is stored. Issuing a new code voids the old one. A successful change signs out every session of that account. Sending and verifying are rate-limited.
 - Email goes through **Resend** (`RESEND_API_KEY`, free tier). Without a verified domain Resend only delivers to the address the Resend account was created with, so sign up to Resend with the same email as the admin account (or verify a domain and set `EMAIL_FROM`).
 
+## 7d. Launch extras
+
+- Telegram alerts (once linked) for **new orders, payment proofs and support messages**, sent after the response so customers never wait.
+- Daily housekeeping runs automatically after the admin dashboard loads (at most once per 24 h): retention, old chats, expired sessions, rate-limit rows and auth codes.
+- SEO and sharing: dynamic `sitemap.xml` (all active categories and products in both languages), `robots.txt` with sitemap, Open Graph preview image, and a web app manifest with icons so customers can "Add to Home Screen".
+- The base URL comes from `APP_URL` when set, otherwise from the request host, so links stay correct after renaming the Netlify site or adding a custom domain.
+
 ## 8. Security summary
 
 - Server-side validation (Zod) on every action. All SQL is parameterized through Drizzle, and LIKE wildcards in search are escaped.
@@ -183,7 +190,7 @@ tests/e2e/smoke.mjs  browser: Arabic RTL default, language switch, category nav,
                      admin auth + payment confirmation + completion, CSV, admin pages, dark mode
 ```
 
-At the time of writing: **127 unit/integration tests pass**, the **19-step e2e smoke test passes** with zero browser console errors, and `npm run build` succeeds.
+At the time of writing: **128 unit/integration tests pass**, the **19-step e2e smoke test passes** with zero browser console errors, and `npm run build` succeeds.
 
 ## 10. Before going live — checklist
 

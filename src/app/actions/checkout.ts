@@ -1,7 +1,11 @@
 "use server";
 
+import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { clientIp } from "@/lib/server/request";
+import { formatIQD } from "@/lib/domain/money";
+import { notifyStaff } from "@/lib/services/notify";
+import { loadOrderFull } from "@/lib/services/orders";
+import { clientIp, siteUrl } from "@/lib/server/request";
 import { consumeRateLimit } from "@/lib/services/rate-limit";
 import { createOrder, ServiceError } from "@/lib/services/orders";
 import { checkoutSchema, fieldErrors } from "@/lib/validation/schemas";
@@ -41,6 +45,18 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
   try {
     const order = await createOrder(parsed.data, { userId: user?.id ?? null });
     const locale = parsed.data.locale;
+    if (!order.duplicate) {
+      const base = await siteUrl();
+      // Sent after the response so the customer never waits for Telegram.
+      after(async () => {
+        const full = await loadOrderFull(order.orderId);
+        if (!full) return;
+        const items = full.items.map((i) => `• ${i.productNameAr}${i.packageLabelAr ? ` (${i.packageLabelAr})` : ""} × ${i.quantity}`).join("\n");
+        await notifyStaff(
+          `🛒 طلب جديد ${full.reference}\n👤 ${full.customerName}\n💰 ${formatIQD(full.total, "ar")} — ${full.paymentMethodNameAr}\n${items}\n\n↩️ ${base}/ar/admin/orders/${full.id}`,
+        );
+      });
+    }
     return {
       ok: true,
       data: { redirectTo: `/${locale}/orders/${order.reference}?key=${order.accessKey}&new=1` },

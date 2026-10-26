@@ -82,7 +82,7 @@ export async function getThreadByToken(token: string | undefined, conn: DbOrTx =
 }
 
 export async function startThread(
-  input: { name: string; phone: string | null; locale: Locale; userId: string | null; firstMessage: string },
+  input: { name: string; phone: string | null; locale: Locale; userId: string | null; firstMessage: string; baseUrl?: string },
   conn: DbOrTx = db,
 ): Promise<{ token: string; thread: SupportThread }> {
   const token = generateSessionToken();
@@ -90,7 +90,7 @@ export async function startThread(
     .insert(supportThreads)
     .values({ tokenHash: sha256(token), name: input.name, phone: input.phone, locale: input.locale, userId: input.userId })
     .returning();
-  await addCustomerMessage(thread!, input.firstMessage, conn, { isFirst: true });
+  await addCustomerMessage(thread!, input.firstMessage, conn, { isFirst: true, baseUrl: input.baseUrl });
   return { token, thread: thread! };
 }
 
@@ -99,7 +99,7 @@ const BOT_TAG = (id: string) => `⁣${id}⁣`;
 const tagOf = (body: string) => /⁣(\w+)⁣/.exec(body)?.[1];
 export const stripTag = (body: string) => body.replace(/⁣\w+⁣/g, "");
 
-export async function addCustomerMessage(thread: SupportThread, body: string, conn: DbOrTx = db, opts: { isFirst?: boolean } = {}) {
+export async function addCustomerMessage(thread: SupportThread, body: string, conn: DbOrTx = db, opts: { isFirst?: boolean; baseUrl?: string } = {}) {
   const text = body.trim().slice(0, MAX_MESSAGE_LENGTH);
   if (!text) return;
   const settings = await loadSettings(conn);
@@ -135,7 +135,7 @@ export async function addCustomerMessage(thread: SupportThread, body: string, co
   // Phone alert at most once a minute per conversation, so a burst of messages is one ping.
   const shouldNotify = !thread.lastNotifiedAt || now.getTime() - thread.lastNotifiedAt.getTime() > 60_000;
   if (shouldNotify && settings.telegramChatId) {
-    const base = process.env.APP_URL ?? process.env.URL ?? "";
+    const base = opts.baseUrl ?? process.env.APP_URL ?? process.env.URL ?? "";
     const ok = await sendTelegram(
       settings.telegramChatId,
       `💬 رسالة دعم جديدة من ${thread.name}${thread.phone ? ` (${thread.phone})` : ""}:\n\n${text.slice(0, 500)}\n\n↩️ للرد: ${base}/ar/admin/support/${thread.id}`,

@@ -93,3 +93,15 @@ describe("support auto-reply content", () => {
     expect(withNumber[0]!.body).toContain("زين كاش: 07757382822");
   });
 });
+
+describe.skipIf(!hasDb)("daily maintenance", () => {
+  it("runs at most once per day", async () => {
+    const { maybeRunMaintenance } = await import("@/lib/services/maintenance");
+    const { saveSettings } = await import("@/lib/services/settings");
+    await saveSettings({ lastMaintenanceAt: "" });
+    const now = Date.now();
+    expect(await maybeRunMaintenance(now)).toBe(true);
+    expect(await maybeRunMaintenance(now + 60_000)).toBe(false);
+    expect(await maybeRunMaintenance(now + 25 * 60 * 60 * 1000)).toBe(true);
+  });
+});
