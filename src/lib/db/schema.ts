@@ -69,6 +69,9 @@ export const requestStatus = pgEnum("request_status", ["new", "in_review", "quot
 
 export const historyActor = pgEnum("history_actor", ["customer", "staff", "system"]);
 
+export const supportSender = pgEnum("support_sender", ["customer", "staff", "bot"]);
+export const supportStatus = pgEnum("support_status", ["open", "closed"]);
+
 /* ------------------------------------------------------------------ */
 /* Users & sessions                                                    */
 /* ------------------------------------------------------------------ */
@@ -450,6 +453,49 @@ export const rateLimits = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
+/* Live support chat                                                   */
+/* ------------------------------------------------------------------ */
+
+export const supportThreads = pgTable(
+  "support_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** SHA-256 of the random token kept in the visitor's httpOnly cookie. */
+    tokenHash: text("token_hash").notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    locale: text("locale").notNull().default("ar"),
+    status: supportStatus("status").notNull().default("open"),
+    unreadForStaff: integer("unread_for_staff").notNull().default(0),
+    unreadForCustomer: integer("unread_for_customer").notNull().default(0),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("support_threads_token_uq").on(t.tokenHash),
+    index("support_threads_last_idx").on(t.lastMessageAt),
+    index("support_threads_unread_idx").on(t.unreadForStaff),
+  ],
+);
+
+export const supportMessages = pgTable(
+  "support_messages",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => supportThreads.id, { onDelete: "cascade" }),
+    sender: supportSender("sender").notNull(),
+    staffId: uuid("staff_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("support_messages_thread_idx").on(t.threadId, t.id), check("support_messages_len_ck", sql`char_length(${t.body}) BETWEEN 1 AND 2000`)],
+);
+
+/* ------------------------------------------------------------------ */
 /* Relations                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -507,3 +553,5 @@ export type UserRole = (typeof userRole.enumValues)[number];
 export type FieldType = (typeof fieldType.enumValues)[number];
 export type CustomRequest = typeof customRequests.$inferSelect;
 export type RequestStatus = (typeof requestStatus.enumValues)[number];
+export type SupportThread = typeof supportThreads.$inferSelect;
+export type SupportMessage = typeof supportMessages.$inferSelect;

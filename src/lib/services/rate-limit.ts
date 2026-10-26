@@ -12,6 +12,8 @@ export const RATE_LIMITS = {
   orderLookup: { limit: 20, windowSeconds: 15 * 60 },
   paymentProof: { limit: 10, windowSeconds: 60 * 60 },
   customRequest: { limit: 5, windowSeconds: 60 * 60 },
+  supportStart: { limit: 5, windowSeconds: 60 * 60 },
+  supportMessage: { limit: 20, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

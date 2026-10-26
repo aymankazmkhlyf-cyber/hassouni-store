@@ -139,6 +139,14 @@ Every admin page **and** every server action checks the permission on the server
 - “Contact support about this order” opens WhatsApp with a URL-encoded message that contains only the reference, status, total and item names. The Telegram and Instagram links open the chat or profile. Nothing is sent automatically, and the links work without the apps (they fall back to the website).
 - Customers are **not notified automatically**. No SMS, WhatsApp or email provider is configured. The admin order page has a “Message customer on WhatsApp” button with a prepared status message that staff send themselves.
 
+## 7b. Live support chat
+
+- A chat button sits on every storefront page. The first message opens a conversation tied to a random token in an httpOnly cookie (only its SHA-256 is stored), so a visitor can only ever read their own chat.
+- **Instant auto-replies**: a welcome with response hours, and one-time keyword answers (payment details, prices, order tracking, PUBG, and a warning never to share passwords). Bot links point only to this site's own pages.
+- Staff answer from **Admin → Live support**. The header badge polls every 15 s and can play a sound and show a browser notification. Customers see replies within a few seconds (polling every 4 s while the chat is open, 30 s while closed). No websockets are needed, which keeps it compatible with serverless hosting.
+- **Phone alerts via Telegram (optional, free)**: create a bot with @BotFather, set `TELEGRAM_BOT_TOKEN` in the host environment, redeploy, press Start on the bot, then press “Link Telegram” in Admin → Live support. At most one alert per conversation per minute. Without the token, alerts are silently disabled.
+- Rate limits: 5 new chats per hour and 20 messages per 10 minutes per IP. Old chats are deleted by `retention:run` after the retention period.
+
 ## 8. Security summary
 
 - Server-side validation (Zod) on every action. All SQL is parameterized through Drizzle, and LIKE wildcards in search are escaped.
@@ -169,7 +177,7 @@ tests/e2e/smoke.mjs  browser: Arabic RTL default, language switch, category nav,
                      admin auth + payment confirmation + completion, CSV, admin pages, dark mode
 ```
 
-At the time of writing: **113 unit/integration tests pass**, the **19-step e2e smoke test passes** with zero browser console errors, and `npm run build` succeeds.
+At the time of writing: **121 unit/integration tests pass**, the **19-step e2e smoke test passes** with zero browser console errors, and `npm run build` succeeds.
 
 ## 10. Before going live — checklist
 

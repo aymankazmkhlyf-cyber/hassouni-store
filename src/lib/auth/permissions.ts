@@ -13,7 +13,8 @@ export type Permission =
   | "customers:read"
   | "customers:write"
   | "requests:manage"
-  | "audit:read";
+  | "audit:read"
+  | "support:manage";
 
 const STAFF: readonly Permission[] = [
   "dashboard:view",
@@ -22,6 +23,7 @@ const STAFF: readonly Permission[] = [
   "payments:review",
   "customers:read",
   "requests:manage",
+  "support:manage",
 ];
 
 const ADMIN: readonly Permission[] = [

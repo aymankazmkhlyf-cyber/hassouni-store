@@ -9,6 +9,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Logo } from "@/components/ui/logo";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { SupportNotifier } from "@/components/admin/support-notifier";
 import { LanguageSwitcher, ThemeToggle } from "@/components/store/header-widgets";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -20,6 +21,7 @@ export default async function AdminLayout({ children, params }: LocaleParams & {
   const all: { href: string; label: string; icon: string; perm: Permission; exact?: boolean }[] = [
     { href: a, label: t.admin.dashboard, icon: "chart", perm: "dashboard:view", exact: true },
     { href: `${a}/orders`, label: t.admin.orders, icon: "receipt", perm: "orders:read" },
+    { href: `${a}/support`, label: t.admin.support, icon: "chat", perm: "support:manage" },
     { href: `${a}/products`, label: t.admin.products, icon: "box", perm: "products:write" },
     { href: `${a}/categories`, label: t.admin.categories, icon: "grid", perm: "categories:write" },
     { href: `${a}/payment-methods`, label: t.admin.paymentMethods, icon: "card", perm: "payment_methods:write" },
@@ -41,6 +43,9 @@ export default async function AdminLayout({ children, params }: LocaleParams & {
             <span className="hidden text-xs text-fg-subtle md:inline">
               {t.admin.signedInAs} <span className="font-semibold text-fg">{user.name}</span> ({user.role})
             </span>
+            {hasPermission(user.role, "support:manage") ? (
+              <SupportNotifier href={`${a}/support`} label={t.admin.support} newMessage={t.admin.supportPage.newMessage} />
+            ) : null}
             <ThemeToggle label={t.nav.themeToggle} />
             <Suspense fallback={null}>
               <LanguageSwitcher locale={locale} label={t.nav.language} ariaLabel={t.nav.languageLabel} />

@@ -33,6 +33,8 @@ export const storeSettingsSchema = z.object({
   refundAr: str(20000, defaultPolicies.refundAr),
   refundEn: str(20000, defaultPolicies.refundEn),
   policiesUpdatedAt: z.string().catch("").default(""),
+  /** Telegram chat that receives new-support-message alerts (linked from Admin → Support). */
+  telegramChatId: z.string().max(40).catch("").default(""),
 });
 
 export type StoreSettings = z.infer<typeof storeSettingsSchema>;
