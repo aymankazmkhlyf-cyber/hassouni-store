@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "tsx scripts/migrate.ts && tsx scripts/seed.ts && tsx scripts/bootstrap-admin.ts && next build",
+    "deploy:build": "tsx scripts/migrate.ts && tsx scripts/seed.ts && tsx scripts/bootstrap-admin.ts && next build",
+    "vercel-build": "npm run deploy:build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",

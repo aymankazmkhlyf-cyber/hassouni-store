@@ -1,0 +1,24 @@
+# One-click deploy on Render (Dashboard → New → Blueprint → pick this repo).
+# Render prompts for the values marked `sync: false`.
+services:
+  - type: web
+    name: hassouni-store
+    runtime: node
+    plan: free
+    region: frankfurt # closest Render region to Iraq
+    buildCommand: npm ci && npm run deploy:build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: APP_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
