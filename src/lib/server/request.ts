@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 /** Client IP for rate limiting. Forwarded headers are only trusted behind a known proxy. */
 export async function clientIp(): Promise<string> {
   const h = await headers();
-  // Vercel always sits behind its own proxy, so its forwarded headers are trustworthy there.
-  if (process.env.TRUST_PROXY === "true" || process.env.VERCEL === "1") {
+  // Vercel and Netlify always sit behind their own proxy, so forwarded headers are trustworthy there.
+  if (process.env.TRUST_PROXY === "true" || process.env.VERCEL === "1" || process.env.NETLIFY === "true") {
     const fwd = h.get("x-forwarded-for")?.split(",")[0]?.trim();
     if (fwd) return fwd;
     const real = h.get("x-real-ip");

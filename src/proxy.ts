@@ -33,7 +33,8 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  // btoa instead of Buffer: works in both the Node.js and edge runtimes.
+  const nonce = btoa(crypto.randomUUID());
   const isDev = process.env.NODE_ENV === "development";
   const csp = [
     "default-src 'self'",
