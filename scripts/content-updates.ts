@@ -1360,6 +1360,14 @@ async function pricesV11(tx: Tx) {
   }
 }
 
+/** Arabic "و" glued to Latin brand names renders as "Geminiو" in RTL; list them with commas instead. */
+async function textV12(tx: Tx) {
+  await tx
+    .update(schema.categories)
+    .set({ descriptionAr: "ChatGPT، Gemini، Claude، شاهد، يوتيوب بريميوم، سبوتيفاي، نتفليكس، Canva، CapCut وتلكرام بريميوم." })
+    .where(eq(schema.categories.slug, "subscriptions"));
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
@@ -1372,6 +1380,7 @@ const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-27-super-qi-v9", run: superQiV9 },
   { id: "2026-10-27-catalog-v10", run: catalogV10 },
   { id: "2026-10-27-prices-v11", run: pricesV11 },
+  { id: "2026-10-28-text-v12", run: textV12 },
 ];
 
 const KEY = "content_updates";
