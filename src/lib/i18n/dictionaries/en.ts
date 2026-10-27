@@ -154,8 +154,7 @@ const en: Dictionary = {
     limitReached: "You have reached the maximum number of items in the cart.",
   },
   checkout: {
-    openInProgress: "You have an order in progress. Please wait until it is completed before ordering the same service for the same account or link, so orders do not overlap or get delayed.",
-    openUnpaid: "You have an order awaiting payment. If you want the same order, complete its payment from its page instead of placing a new one.",
+    openInProgress: "You already have this service in progress for the same account. Please wait until it is completed, then order it again. (You can order now for another account or another service.)",
     title: "Checkout",
     contactInfo: "Contact information",
     name: "Full name",
@@ -453,7 +452,7 @@ const en: Dictionary = {
     usernameLocked: "Your username is already set and cannot be changed.",
     insufficientBalance: "Your wallet balance is not enough for this order. Top up or choose another payment method.",
     walletLoginRequired: "Log in to pay from your wallet balance.",
-    activeOrderExists: "You already have an order in progress for the same service and the same account or link. Please wait until it is completed, then order again, so the orders do not overlap.",
+    activeOrderExists: "You already have an order in progress for the same service and the same account or link. Please wait until it is completed, then order again. For another account or another service you can order right now.",
     walletNotEmpty: "An account with a wallet balance cannot be deleted. Contact us to get your balance back first.",
     topupAmount: "The top-up amount must be between 1,000 and 5,000,000 IQD.",
     topupTooMany: "You have top-up requests under review. Wait for them before sending a new one.",

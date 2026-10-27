@@ -1240,6 +1240,126 @@ async function catalogV10(tx: Tx) {
     .where(inArray(schema.products.slug, social));
 }
 
+/**
+ * Owner round 11 (2026-10-27): lower, reasonable margins instead of 75%.
+ * - Game top-ups and gift cards: cost + 10%, rounded up to whole thousands
+ *   (rounded down instead when rounding up would add more than 30%, as long as
+ *   it stays at least 5% above cost).
+ * - Other subscriptions: cost + 15%, rounded up to whole thousands.
+ * - YouTube Premium and Canva: the owner's own prices.
+ */
+function reasonable(cost: number, margin: number) {
+  const up = Math.ceil((cost * (1 + margin)) / 1000) * 1000;
+  const down = Math.floor((cost * (1 + margin)) / 1000) * 1000;
+  return up > cost * 1.3 && down >= cost * 1.05 ? down : up;
+}
+const usd = (x: number) => x * USD_IQD;
+
+/** Replaces a product's packages in place (keeps package ids for carts and history when the count matches). */
+async function setPackages(tx: Tx, slug: string, packs: Pkg[]) {
+  const product = await tx.query.products.findFirst({ where: eq(schema.products.slug, slug), with: { packages: true } });
+  if (!product) return null;
+  const existing = [...product.packages].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+  for (let i = 0; i < packs.length; i++) {
+    const row = { ...packs[i]!, compareAtPrice: null, isActive: true, sortOrder: i };
+    const current = existing[i];
+    if (current) await tx.update(schema.productPackages).set(row).where(eq(schema.productPackages.id, current.id));
+    else await tx.insert(schema.productPackages).values({ ...row, productId: product.id });
+  }
+  for (const extra of existing.slice(packs.length)) await tx.delete(schema.productPackages).where(eq(schema.productPackages.id, extra.id));
+  return product.id;
+}
+
+async function pricesV11(tx: Tx) {
+  // Mobile Legends (same reference USD prices as round 10).
+  await setPackages(tx, "mobile-legends-diamonds", [
+    pkg("تذكرة الألماس الأسبوعية", "Weekly Diamond Pass", reasonable(usd(1.65), 0.1)),
+    pkg("86 ألماسة", "86 diamonds", reasonable(usd(1.3), 0.1)),
+    pkg("172 ألماسة", "172 diamonds", reasonable(usd(2.6), 0.1)),
+    pkg("257 ألماسة", "257 diamonds", reasonable(usd(3.89), 0.1)),
+    pkg("516 ألماسة", "516 diamonds", reasonable(usd(7.48), 0.1)),
+    pkg("706 ألماسة", "706 diamonds", reasonable(usd(10.41), 0.1)),
+  ]);
+
+  // Gift cards: face value + 10%.
+  const cards: [string, number[]][] = [
+    ["playstation-gift-card", [10, 25, 50]],
+    ["steam-gift-card", [10, 20, 50]],
+    ["google-play-gift-card", [10, 25, 50]],
+    ["app-store-gift-card", [10, 25, 50]],
+    ["xbox-gift-card", [10, 25, 50]],
+  ];
+  for (const [slug, amounts] of cards) {
+    await setPackages(tx, slug, amounts.map((a) => pkg(`بطاقة $${a}`, `$${a} card`, reasonable(usd(a), 0.1))));
+  }
+
+  // Subscriptions: cost + 15%.
+  await setPackages(tx, "shahid-vip", [pkg("شهر", "1 month", reasonable(4999, 0.15)), pkg("3 أشهر", "3 months", reasonable(4999 * 3, 0.15))]);
+  await setPackages(tx, "spotify-premium", [pkg("شهر", "1 month", reasonable(4900, 0.15)), pkg("سنة", "1 year", reasonable(49000, 0.15))]);
+  await setPackages(tx, "netflix", [pkg("Standard — شهر", "Standard — 1 month", reasonable(usd(7.99), 0.15)), pkg("Premium — شهر", "Premium — 1 month", reasonable(usd(9.99), 0.15))]);
+  await setPackages(tx, "capcut-pro", [pkg("شهر", "1 month", reasonable(usd(19.99), 0.15))]);
+
+  // YouTube Premium — owner's prices.
+  const yt = await setPackages(tx, "youtube-premium", [
+    pkg("فردي — شهر", "Individual — 1 month", 10000),
+    pkg("عائلي — شهر (حتى 5 أفراد)", "Family — 1 month (up to 5 members)", 15000),
+    pkg("طالب — شهر", "Student — 1 month", 5000),
+  ]);
+  if (yt) {
+    await tx
+      .update(schema.products)
+      .set({
+        summaryAr: "فردي 10,000 · عائلي 15,000 (حتى 5 أفراد) · طالب 5,000 دينار شهرياً.",
+        summaryEn: "Individual 10,000 · Family 15,000 (up to 5 members) · Student 5,000 IQD a month.",
+        descriptionAr:
+          "يوتيوب بدون إعلانات، تشغيل بالخلفية، وتنزيل الفيديوهات، ويشمل YouTube Music.\n\n• فردي: حساب واحد.\n• عائلي: تضيف حتى 5 أفراد من عائلتك، أعمارهم 13 سنة فما فوق، كل واحد بحسابه. اكتب إيميلاتهم بالخانة المخصصة.\n• طالب: حسب شروط يوتيوب لاشتراك الطلاب (قد يُطلب التحقق من أنك طالب)." +
+          subNote.ar,
+        descriptionEn:
+          "YouTube without ads, background play and downloads, including YouTube Music.\n\n• Individual: one account.\n• Family: add up to 5 family members aged 13 or older, each with their own account. List their emails in the field provided.\n• Student: subject to YouTube's student-plan terms (student verification may be required)." +
+          subNote.en,
+      })
+      .where(eq(schema.products.id, yt));
+    await tx.delete(schema.productFields).where(eq(schema.productFields.productId, yt));
+    await tx.insert(schema.productFields).values([
+      { ...emailField("بريد حساب Google (صاحب الاشتراك)", "Google account email (subscription owner)"), productId: yt, sortOrder: 0 },
+      {
+        key: "family_emails",
+        labelAr: "إيميلات أفراد العائلة (للباقة العائلية فقط)",
+        labelEn: "Family members' emails (family plan only)",
+        helpAr: "حتى 5 إيميلات، كل إيميل بسطر. أعمارهم 13 سنة فما فوق.",
+        helpEn: "Up to 5 emails, one per line. Members must be 13 or older.",
+        type: "textarea",
+        required: false,
+        maxLength: 600,
+        productId: yt,
+        sortOrder: 1,
+      },
+    ]);
+  }
+
+  // Canva — owner's prices for Pro and Business, monthly and yearly.
+  const canva = await setPackages(tx, "canva-pro", [
+    pkg("Pro — شهر", "Pro — 1 month", 30000),
+    pkg("Pro — سنة", "Pro — 1 year", 225000),
+    pkg("Business — شهر", "Business — 1 month", 42000),
+    pkg("Business — سنة", "Business — 1 year", 400000),
+  ]);
+  if (canva) {
+    await tx
+      .update(schema.products)
+      .set({
+        nameAr: "اشتراك Canva (Pro و Business)",
+        nameEn: "Canva subscription (Pro & Business)",
+        summaryAr: "Pro: 30,000 شهرياً أو 225,000 سنوياً · Business: 42,000 شهرياً أو 400,000 سنوياً.",
+        summaryEn: "Pro: 30,000 a month or 225,000 a year · Business: 42,000 a month or 400,000 a year.",
+        descriptionAr:
+          "كل قوالب وأدوات Canva المدفوعة للتصميم.\n\n• Pro: لشخص واحد.\n• Business: للفرق والشركات، مع أدوات الهوية التجارية والعمل الجماعي." + subNote.ar,
+        descriptionEn: "All of Canva's premium templates and tools.\n\n• Pro: for one person.\n• Business: for teams and companies, with brand and collaboration tools." + subNote.en,
+      })
+      .where(eq(schema.products.id, canva));
+  }
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
@@ -1251,6 +1371,7 @@ const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-27-privacy-v8", run: privacyV8 },
   { id: "2026-10-27-super-qi-v9", run: superQiV9 },
   { id: "2026-10-27-catalog-v10", run: catalogV10 },
+  { id: "2026-10-27-prices-v11", run: pricesV11 },
 ];
 
 const KEY = "content_updates";

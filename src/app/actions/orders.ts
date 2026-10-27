@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { checkUpload } from "@/lib/domain/file-signature";
 import { isLocale } from "@/lib/i18n/config";
 import { clientIp, siteUrl } from "@/lib/server/request";
-import { getOrderByAccessKey, getOrderForUser, listOrdersForUser, ServiceError, submitPaymentProof } from "@/lib/services/orders";
+import { conflictingOrderRefs, getOrderByAccessKey, getOrderForUser, listOrdersForUser, ServiceError, submitPaymentProof } from "@/lib/services/orders";
 import { z } from "zod";
 import { consumeRateLimit } from "@/lib/services/rate-limit";
 import { paymentProofSchema, trackSchema } from "@/lib/validation/schemas";
@@ -66,30 +66,31 @@ export async function submitProofAction(_prev: ActionState, formData: FormData):
   return { ok: true };
 }
 
-const recentSchema = z.array(z.object({ ref: z.string().trim().min(5).max(40), key: z.string().trim().min(10).max(60) })).max(5);
+const openOrdersSchema = z.object({
+  recent: z.array(z.object({ ref: z.string().trim().min(5).max(40), key: z.string().trim().min(10).max(60) })).max(5),
+  lines: z
+    .array(z.object({ productId: z.number().int().positive(), inputs: z.record(z.string().max(40), z.string().max(2000)) }))
+    .max(20),
+});
 
 /**
- * Which of this customer's recent orders are still open, so checkout can ask
- * them to wait instead of placing an overlapping order. Guests send the
- * reference + key pairs this browser saved; logged-in customers need nothing.
+ * Orders of this customer still in progress for the SAME service and the SAME
+ * account as something in the cart. Orders for another account or another
+ * service are fine and are not reported. Guests send the reference + key pairs
+ * this browser saved; logged-in customers' own orders are included.
  */
-export async function openOrdersAction(input: unknown): Promise<{ unpaid: string[]; inProgress: string[] }> {
-  const empty = { unpaid: [], inProgress: [] };
-  const parsed = recentSchema.safeParse(input);
-  if (!parsed.success) return empty;
+export async function openOrdersAction(input: unknown): Promise<{ inProgress: string[] }> {
+  const parsed = openOrdersSchema.safeParse(input);
+  if (!parsed.success || !parsed.data.lines.length) return { inProgress: [] };
+  const refs = new Set<string>();
   const user = await getCurrentUser();
-  const found: { reference: string; status: string }[] = [];
-  if (user) {
-    for (const o of await listOrdersForUser(user.id)) found.push({ reference: o.reference, status: o.status });
-  }
-  if (parsed.data.length && (await consumeRateLimit("orderLookup", await clientIp()))) {
-    for (const r of parsed.data) {
+  if (user) for (const o of await listOrdersForUser(user.id)) refs.add(o.reference);
+  if (parsed.data.recent.length && (await consumeRateLimit("orderLookup", await clientIp()))) {
+    for (const r of parsed.data.recent) {
       const o = await getOrderByAccessKey(r.ref, r.key);
-      if (o && !found.some((f) => f.reference === o.reference)) found.push({ reference: o.reference, status: o.status });
+      if (o) refs.add(o.reference);
     }
   }
-  return {
-    unpaid: found.filter((o) => o.status === "pending_payment").map((o) => o.reference).slice(0, 3),
-    inProgress: found.filter((o) => ["payment_review", "paid", "processing"].includes(o.status)).map((o) => o.reference).slice(0, 3),
-  };
+  const lines = parsed.data.lines.map((l) => ({ productId: l.productId, inputs: Object.entries(l.inputs).map(([key, value]) => ({ key, value })) }));
+  return { inProgress: (await conflictingOrderRefs([...refs], lines)).slice(0, 3) };
 }

@@ -27,7 +27,7 @@ export type CheckoutStrings = Record<
   | "contactInfo" | "name" | "phone" | "phoneHint" | "email" | "paymentMethod" | "manualNote" | "noMethods" | "notes"
   | "acceptTerms" | "terms" | "refund" | "placeOrder" | "placing" | "summary" | "loginSuggestion" | "login" | "noCardData"
   | "total" | "empty" | "continue" | "optional" | "fixErrors" | "backToCart"
-  | "openInProgress" | "openUnpaid" | "walletName" | "walletAvailable" | "walletInsufficient" | "walletTopup" | "walletInstant" | "walletLogin",
+  | "openInProgress" | "walletName" | "walletAvailable" | "walletInsufficient" | "walletTopup" | "walletInstant" | "walletLogin",
   string
 > & { errors: Record<string, string> };
 
@@ -73,20 +73,21 @@ export function CheckoutForm({
   const { state, action, onSubmit, pending } = useActionForm(placeOrderAction, {});
   const [methodId, setMethodId] = useState<number | "wallet" | null>(wallet && wallet.balance > 0 ? "wallet" : (methods[0]?.id ?? null));
   const [idempotencyKey, setKey] = useState("");
-  const [open, setOpen] = useState<{ unpaid: string[]; inProgress: string[]; keys: Record<string, string> }>({ unpaid: [], inProgress: [], keys: {} });
+  const [open, setOpen] = useState<{ inProgress: string[]; keys: Record<string, string> }>({ inProgress: [], keys: {} });
 
-  // Warn about this customer's orders that are still open (see openOrdersAction).
+  // Warn only when the cart repeats a service for the same account as an order still in progress.
+  const targets = JSON.stringify(lines.map(({ productId, inputs }) => ({ productId, inputs })));
   useEffect(() => {
     const recent = readRecentOrders();
-    if (!recent.length && !loggedIn) return;
+    if ((!recent.length && !loggedIn) || !ready) return;
     let alive = true;
-    openOrdersAction(recent.map(({ ref, key }) => ({ ref, key })))
-      .then((r) => alive && setOpen({ ...r, keys: Object.fromEntries(recent.map((x) => [x.ref, x.key])) }))
+    openOrdersAction({ recent: recent.map(({ ref, key }) => ({ ref, key })), lines: JSON.parse(targets) })
+      .then((r) => alive && setOpen({ inProgress: r.inProgress, keys: Object.fromEntries(recent.map((x) => [x.ref, x.key])) }))
       .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, [loggedIn]);
+  }, [loggedIn, ready, targets]);
   const orderHref = (ref: string) => `/${locale}/orders/${ref}${open.keys[ref] ? `?key=${open.keys[ref]}` : ""}`;
   const refLinks = (refs: string[]) =>
     refs.map((r, i) => (
@@ -147,11 +148,6 @@ export function CheckoutForm({
         {open.inProgress.length ? (
           <Alert tone="warning" title={s.openInProgress} className="animate-in">
             <p>{refLinks(open.inProgress)}</p>
-          </Alert>
-        ) : null}
-        {open.unpaid.length ? (
-          <Alert tone="info" title={s.openUnpaid}>
-            <p>{refLinks(open.unpaid)}</p>
           </Alert>
         ) : null}
         {!loggedIn ? (

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, or, type SQL } from "drizzle-orm";
 import { db, type DbOrTx } from "@/lib/db";
 import {
   files,
@@ -160,32 +160,54 @@ const WALLET_METHOD = { id: null, code: "wallet", nameAr: "رصيد المحفظ
 const IN_PROGRESS: OrderStatus[] = ["payment_review", "paid", "processing"];
 
 /**
- * Same customer (phone or account), same service, same target details (link,
- * player ID…) while an earlier order is still in progress → returns its
- * reference so the customer is asked to wait for it to finish first.
+ * Fields that identify *which account* a service is for. Two orders conflict only
+ * when they are for the same service AND the same account (same player ID, link,
+ * username or email); notes, names and design briefs never count.
  */
-async function activeDuplicate(tx: DbOrTx, lines: { productId: number; inputs: { key: string; value: string }[] }[], phone: string, userId: string | null) {
-  const targeted = lines.filter((l) => l.inputs.some((i) => i.value));
-  if (!targeted.length) return null;
+const TARGET_KEYS = new Set([
+  "player_id", "zone_id", "profile_url", "post_url", "video_url", "channel_url",
+  "account_url", "telegram_username", "account_email",
+]);
+
+type TargetLine = { productId: number | null; inputs: { key: string; value: string }[] };
+
+export function targetSignature(inputs: { key: string; value: string }[]): string {
+  return inputs
+    .filter((i) => TARGET_KEYS.has(i.key) && i.value.trim())
+    .map((i) => `${i.key}=${i.value.trim().toLowerCase().replace(/\/+$/, "")}`)
+    .sort()
+    .join("&");
+}
+
+/** References of in-progress orders (among `where`) that have the same service + same account as one of `lines`. */
+async function conflicting(tx: DbOrTx, lines: TargetLine[], where: SQL): Promise<string[]> {
+  const targeted = lines.filter((l) => l.productId != null && targetSignature(l.inputs));
+  if (!targeted.length) return [];
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const owner = userId ? or(eq(orders.customerPhone, phone), eq(orders.userId, userId))! : eq(orders.customerPhone, phone);
   const rows = await tx
     .select({ reference: orders.reference, productId: orderItems.productId, inputs: orderItems.inputs })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))
-    .where(and(owner, inArray(orders.status, IN_PROGRESS), gt(orders.createdAt, since), inArray(orderItems.productId, targeted.map((l) => l.productId))))
-    .limit(50);
-  const sig = (inputs: { key: string; value: string }[]) =>
-    inputs
-      .filter((i) => i.value)
-      .map((i) => `${i.key}=${i.value.trim().toLowerCase()}`)
-      .sort()
-      .join("&");
+    .where(and(where, inArray(orders.status, IN_PROGRESS), gt(orders.createdAt, since), inArray(orderItems.productId, targeted.map((l) => l.productId!))))
+    .limit(100);
+  const refs = new Set<string>();
   for (const l of targeted) {
-    const hit = rows.find((r) => r.productId === l.productId && sig(r.inputs) === sig(l.inputs));
-    if (hit) return hit.reference;
+    const sig = targetSignature(l.inputs);
+    for (const r of rows) if (r.productId === l.productId && targetSignature(r.inputs) === sig) refs.add(r.reference);
   }
-  return null;
+  return [...refs];
+}
+
+/** Same customer (phone or account) already has this service in progress for the same account → its reference. */
+async function activeDuplicate(tx: DbOrTx, lines: TargetLine[], phone: string, userId: string | null) {
+  const owner = userId ? or(eq(orders.customerPhone, phone), eq(orders.userId, userId))! : eq(orders.customerPhone, phone);
+  return (await conflicting(tx, lines, owner))[0] ?? null;
+}
+
+/** For the checkout warning: which of these orders (by reference) overlap with the cart. */
+export async function conflictingOrderRefs(references: string[], lines: TargetLine[], conn: DbOrTx = db) {
+  if (!references.length) return [];
+  return conflicting(conn, lines, inArray(orders.reference, references));
 }
 
 async function rotateDuplicate(

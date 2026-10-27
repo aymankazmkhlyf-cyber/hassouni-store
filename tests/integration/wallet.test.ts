@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { orders, payments, users, walletTopups, walletTransactions } from "@/lib/db/schema";
 import { anonymizeCustomer, authenticate, registerCustomer } from "@/lib/services/accounts";
-import { createOrder, ServiceError, transitionOrder } from "@/lib/services/orders";
+import { conflictingOrderRefs, createOrder, ServiceError, targetSignature, transitionOrder } from "@/lib/services/orders";
 import {
   adminAdjustWallet,
   createTopup,
@@ -16,7 +16,7 @@ import {
   usernameProblem,
 } from "@/lib/services/wallet";
 import { registerSchema } from "@/lib/validation/schemas";
-import { checkoutInput, enabledMethodId, hasDb, makeUser } from "./helpers";
+import { checkoutInput, enabledMethodId, hasDb, makeUser, productBySlug } from "./helpers";
 
 const expectCode = async (p: Promise<unknown>, code: string) => {
   await expect(p).rejects.toBeInstanceOf(ServiceError);
@@ -154,6 +154,14 @@ describe.skipIf(!hasDb)("wallet", () => {
   });
 });
 
+describe("order target signature", () => {
+  it("uses only account-identifying fields", () => {
+    expect(targetSignature([{ key: "player_id", value: " 51234 " }, { key: "player_name", value: "Ali" }])).toBe("player_id=51234");
+    expect(targetSignature([{ key: "profile_url", value: "https://Instagram.com/me/" }])).toBe("profile_url=https://instagram.com/me");
+    expect(targetSignature([{ key: "brief", value: "a poster" }])).toBe("");
+  });
+});
+
 describe.skipIf(!hasDb)("overlapping orders", () => {
   it("blocks the same service + same target while an earlier order is in progress", async () => {
     const staff = await makeUser("staff");
@@ -175,6 +183,23 @@ describe.skipIf(!hasDb)("overlapping orders", () => {
     expect(otherId.duplicate).toBe(false);
     const otherCustomer = await createOrder(await checkoutInput({ customerPhone: "+9647722220002" }), { userId: null });
     expect(otherCustomer.duplicate).toBe(false);
+
+    // Adding only a player name does not make it a different account.
+    const withName = createOrder({ ...base, idempotencyKey: randomUUID(), items: [{ ...base.items[0]!, inputs: { player_id: "5123456789", player_name: "Ali" } }] }, { userId: null });
+    await expectCode(withName, "activeOrderExists");
+
+    // Same account, different service is fine.
+    const otherGame = await productBySlug("free-fire-diamonds");
+    const otherService = await createOrder(
+      { ...base, idempotencyKey: randomUUID(), items: [{ productId: otherGame.id, packageId: otherGame.packages[0]!.id, quantity: 1, inputs: { player_id: "5123456789" } }] },
+      { userId: null },
+    );
+    expect(otherService.duplicate).toBe(false);
+
+    // The checkout warning reports only the overlapping order.
+    const refs = [first.reference, otherCustomer.reference];
+    expect(await conflictingOrderRefs(refs, [{ productId: base.items[0]!.productId, inputs: [{ key: "player_id", value: "5123456789" }] }])).toEqual([first.reference]);
+    expect(await conflictingOrderRefs(refs, [{ productId: base.items[0]!.productId, inputs: [{ key: "player_id", value: "5000000001" }] }])).toEqual([]);
 
     // Once completed, the same order can be placed again.
     await transitionOrder(first.orderId, "completed", { type: "staff", user: staff });

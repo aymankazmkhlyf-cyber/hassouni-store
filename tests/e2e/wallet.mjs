@@ -129,7 +129,7 @@ try {
     await page.getByText("مدفوع").first().waitFor();
     assert.equal(await page.getByText("تعليمات الدفع").count(), 0, "no payment step for wallet orders");
     await page.goto(BASE + "/ar/account/wallet");
-    await page.getByTestId("wallet-balance").getByText("17,000").waitFor();
+    await page.getByTestId("wallet-balance").getByText("20,000").waitFor();
   });
 
   await step("a second identical order is warned about and blocked while the first is in progress", async () => {
@@ -169,7 +169,7 @@ try {
     await page.getByTestId("reorder").click();
     await page.waitForURL(/\/ar\/cart/);
     await page.getByText("ألماس موبايل ليجندز").first().waitFor();
-    await page.getByText("8,000 د.ع").first().waitFor();
+    await page.getByText("5,000 د.ع").first().waitFor();
   });
 
   await step("guides are listed, linked and indexable", async () => {
