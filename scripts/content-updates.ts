@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
@@ -88,7 +90,7 @@ async function upsertProducts(tx: Tx, products: ProductSpec[]) {
     if (spec.mode === "package") {
       await tx.insert(schema.productPackages).values(spec.packages.map((p, i) => ({ ...p, productId: id, sortOrder: i })));
     }
-    await tx.insert(schema.productFields).values(spec.fields.map((f, i) => ({ ...f, productId: id, sortOrder: i })));
+    if (spec.fields.length) await tx.insert(schema.productFields).values(spec.fields.map((f, i) => ({ ...f, productId: id, sortOrder: i })));
   }
 
 }
@@ -731,6 +733,513 @@ async function privacyV8(tx: Tx) {
     .where(eq(schema.storeSettings.key, "store"));
 }
 
+/**
+ * The owner's card (2025988359) is a Qi Card: the old "Mastercard" entry becomes
+ * "Qi Card (Super Qi)" with the owner's Super Qi transfer QR.
+ */
+async function superQiV9(tx: Tx) {
+  const qr = readFileSync(new URL("./assets/super-qi-qr.jpg", import.meta.url));
+  const [file] = await tx
+    .insert(schema.files)
+    .values({ kind: "payment_qr", mimeType: "image/jpeg", size: qr.length, sha256: createHash("sha256").update(qr.toString("base64")).digest("hex"), data: qr })
+    .returning({ id: schema.files.id });
+  await tx
+    .update(schema.paymentMethods)
+    .set({
+      nameAr: "كي كارد (سوبر كي)",
+      nameEn: "Qi Card (Super Qi)",
+      accountDetails: "2025988359",
+      instructionsAr:
+        "ادفع من تطبيق سوبر كي: امسح رمز QR الظاهر هنا، أو حوّل إلى رقم البطاقة 2025988359 (باسم حسين رافد). اكتب المبلغ المطلوب بالضبط، ثم أرسل رقم العملية أو صورة الإيصال من هذه الصفحة. لا تشارك رقم بطاقتك أو رمزك السري مع أي أحد.",
+      instructionsEn:
+        "Pay in the Super Qi app: scan the QR code shown here, or transfer to card number 2025988359 (name: Hussein Rafid). Enter the exact amount due, then send the transaction number or a receipt photo from this page. Never share your own card number or PIN with anyone.",
+      qrFileId: file!.id,
+      isEnabled: true,
+      requiresReference: false,
+      allowsReceipt: true,
+      sortOrder: 5,
+    })
+    .where(eq(schema.paymentMethods.code, "mastercard"));
+}
+
+/*
+ * Owner round 10 (2026-10-27): new categories and services, prices and delivery times.
+ *
+ * Pricing rule from the owner: the official price plus a 75% margin, rounded UP
+ * to whole thousands of IQD. Dollar prices use the Baghdad market rate of
+ * 1,680 IQD per USD (Kifah/Harithiya exchanges, 27 Oct 2026). Sources noted per
+ * product. Everything stays editable in Admin → Services.
+ */
+const USD_IQD = 1680;
+const MARGIN = 1.75;
+const upThousand = (x: number) => Math.ceil(Math.round(x) / 1000) * 1000;
+const fromUsd = (usd: number) => upThousand(usd * USD_IQD * MARGIN);
+const fromIqd = (iqd: number) => upThousand(iqd * MARGIN);
+
+const FAST_AR = "من 10 إلى 20 دقيقة بعد تأكيد الدفع";
+const FAST_EN = "10–20 minutes after payment is confirmed";
+
+const giftNote = {
+  ar: "\n\n• البطاقة للحساب الأمريكي (US) — تشتغل فقط على حساب منطقته الولايات المتحدة.\n• الدفع أولاً، وبعد تأكيد التحويل يظهر الكود في صفحة طلبك (قسم «تفاصيل التسليم») خلال 10 إلى 20 دقيقة.\n• الأكواد الرقمية لا تُسترجع بعد تسليمها.",
+  en: "\n\n• The card is for US accounts — it only works on an account whose region is the United States.\n• Payment first: once the transfer is confirmed, the code appears on your order page (“Delivery details”) within 10–20 minutes.\n• Digital codes cannot be refunded once delivered.",
+};
+const subNote = {
+  ar: "\n\nيتم التفعيل على حسابك أنت بكود أو دعوة رسمية بعد تأكيد الدفع، ونتواصل معك إذا احتجنا تفاصيل. لا نطلب كلمة المرور أو رمز التحقق أبداً.",
+  en: "\n\nActivation is on your own account with an official code or invite after payment is confirmed; we contact you if we need details. We never ask for your password or verification code.",
+};
+const briefField = (ar: string, en: string, required = true): Field => ({
+  key: "brief",
+  labelAr: ar,
+  labelEn: en,
+  helpAr: "اكتب التفاصيل: الأسماء، الألوان، النصوص المطلوبة، وأي ملاحظات.",
+  helpEn: "Add the details: names, colours, required text and any notes.",
+  type: "textarea",
+  required,
+  maxLength: 2000,
+});
+const refField: Field = {
+  key: "reference_url",
+  labelAr: "رابط مثال أو ملفات (اختياري)",
+  labelEn: "Example or files link (optional)",
+  helpAr: "مثل رابط Google Drive أو منشور يعجبك.",
+  helpEn: "E.g. a Google Drive link or a post you like.",
+  type: "url",
+  required: false,
+  maxLength: 500,
+};
+const accountUrl: Field = {
+  key: "account_url",
+  labelAr: "رابط الحساب أو الصفحة",
+  labelEn: "Account or page link",
+  helpAr: "نُضاف كمسؤول أو شريك بالأدوات الرسمية — لا نطلب كلمة المرور.",
+  helpEn: "We are added as a manager or partner with official tools — no password.",
+  type: "url",
+  required: true,
+  maxLength: 300,
+};
+const accountType: Field = {
+  key: "account_type",
+  labelAr: "نوع الحساب",
+  labelEn: "Account type",
+  helpAr: "",
+  helpEn: "",
+  type: "select",
+  required: true,
+  maxLength: 40,
+  options: [
+    { value: "personal", labelAr: "شخصي / صانع محتوى", labelEn: "Personal / creator" },
+    { value: "business", labelAr: "تجاري (محل أو خدمة)", labelEn: "Business (shop or service)" },
+    { value: "store", labelAr: "متجر إلكتروني", labelEn: "Online store" },
+    { value: "organization", labelAr: "مؤسسة أو جهة", labelEn: "Organization" },
+  ],
+};
+const aboutField: Field = {
+  key: "about",
+  labelAr: "نبذة عن نشاطك وجمهورك (اختياري)",
+  labelEn: "About your business and audience (optional)",
+  helpAr: "",
+  helpEn: "",
+  type: "textarea",
+  required: false,
+  maxLength: 1500,
+};
+const pkg = (labelAr: string, labelEn: string, price: number): Pkg => ({ labelAr, labelEn, price });
+
+async function catalogV10(tx: Tx) {
+  const cats: (typeof schema.categories.$inferInsert)[] = [
+    {
+      slug: "gift-cards",
+      nameAr: "بطاقات الهدايا",
+      nameEn: "Gift Cards",
+      descriptionAr: "بطاقات بلايستيشن وستيم وجوجل بلاي وآب ستور وإكس بوكس للحساب الأمريكي. الدفع أولاً ثم استلام الكود.",
+      descriptionEn: "PlayStation, Steam, Google Play, App Store and Xbox cards for US accounts. Pay first, then receive the code.",
+      icon: "gift",
+      sortOrder: 25,
+    },
+    {
+      slug: "montage",
+      nameAr: "المونتاج",
+      nameEn: "Video Editing",
+      descriptionAr: "مونتاج ريلز وتيك توك، فيديوهات إعلانية، ومونتاج فيديوهات يوتيوب.",
+      descriptionEn: "Reels and TikTok editing, ad videos and YouTube video editing.",
+      icon: "tv",
+      sortOrder: 45,
+    },
+    {
+      slug: "account-management",
+      nameAr: "إدارة الحسابات",
+      nameEn: "Account Management",
+      descriptionAr: "إدارة حسابات إنستغرام وتيك توك وفيسبوك والحملات الإعلانية بباقات شهرية حسب نوع حسابك.",
+      descriptionEn: "Monthly management for Instagram, TikTok, Facebook and ad campaigns, by account type.",
+      icon: "briefcase",
+      sortOrder: 47,
+    },
+  ];
+  for (const c of cats) {
+    await tx.insert(schema.categories).values(c).onConflictDoUpdate({
+      target: schema.categories.slug,
+      set: { nameAr: c.nameAr, nameEn: c.nameEn, descriptionAr: c.descriptionAr, descriptionEn: c.descriptionEn, icon: c.icon, sortOrder: c.sortOrder, isActive: true },
+    });
+  }
+  await tx
+    .update(schema.categories)
+    .set({
+      descriptionAr: "تبديل بين آسياسيل وزين كاش وكي كارد بكل الاتجاهات. اطلب الخدمة واكتب المبلغ والاتجاه، ونرد عليك بالسعر.",
+      descriptionEn: "Exchange between AsiaCell, Zain Cash and Qi Card in any direction. Request it with the amount and direction and we reply with the rate.",
+    })
+    .where(eq(schema.categories.slug, "balance-exchange"));
+  await tx
+    .update(schema.categories)
+    .set({
+      descriptionAr: "شدات ببجي، ألماس موبايل ليجندز، وألماس وذهب لودو ستار برقم اللاعب فقط — خلال 10 إلى 20 دقيقة من تأكيد الدفع.",
+      descriptionEn: "PUBG UC, Mobile Legends diamonds and Ludo Star diamonds and gold with your player ID only — within 10–20 minutes of payment confirmation.",
+    })
+    .where(eq(schema.categories.slug, "gaming"));
+  await tx
+    .update(schema.categories)
+    .set({
+      descriptionAr: "ChatGPT وGemini وClaude وشاهد ويوتيوب بريميوم وسبوتيفاي ونتفليكس وCanva وCapCut وتلكرام بريميوم.",
+      descriptionEn: "ChatGPT, Gemini, Claude, Shahid, YouTube Premium, Spotify, Netflix, Canva, CapCut and Telegram Premium.",
+    })
+    .where(eq(schema.categories.slug, "subscriptions"));
+
+  // Mobile Legends — reference USD prices of official-web top-up packs (Joytify list, 25 Oct 2026).
+  const mlbb: [string, string, number][] = [
+    ["تذكرة الألماس الأسبوعية", "Weekly Diamond Pass", 1.65],
+    ["86 ألماسة", "86 diamonds", 1.3],
+    ["172 ألماسة", "172 diamonds", 2.6],
+    ["257 ألماسة", "257 diamonds", 3.89],
+    ["516 ألماسة", "516 diamonds", 7.48],
+    ["706 ألماسة", "706 diamonds", 10.41],
+  ];
+  const card = (slug: string, nameAr: string, nameEn: string, icon: string, sortOrder: number, amounts: number[], featured = false): ProductSpec => ({
+    slug,
+    category: "gift-cards",
+    nameAr,
+    nameEn,
+    summaryAr: `بطاقات ${amounts.map((a) => `$${a}`).join(" و")} للحساب الأمريكي — الكود يوصلك بصفحة الطلب.`,
+    summaryEn: `${amounts.map((a) => `$${a}`).join(", ")} cards for US accounts — the code arrives on your order page.`,
+    descriptionAr: `اختر قيمة البطاقة وادفع، وبعد تأكيد التحويل نرسل لك الكود في صفحة طلبك.${giftNote.ar}`,
+    descriptionEn: `Choose the card value and pay; after the transfer is confirmed we send the code to your order page.${giftNote.en}`,
+    icon,
+    deliveryTimeAr: FAST_AR,
+    deliveryTimeEn: FAST_EN,
+    isFeatured: featured,
+    sortOrder,
+    mode: "package",
+    packages: amounts.map((a) => pkg(`بطاقة $${a}`, `$${a} card`, fromUsd(a))),
+    maxPackages: 5,
+    fields: [],
+  });
+  const sub = (
+    slug: string,
+    nameAr: string,
+    nameEn: string,
+    icon: string,
+    sortOrder: number,
+    packages: Pkg[],
+    email: [string, string],
+    summary: [string, string],
+  ): ProductSpec => ({
+    slug,
+    category: "subscriptions",
+    nameAr,
+    nameEn,
+    summaryAr: summary[0],
+    summaryEn: summary[1],
+    descriptionAr: `اختر المدة وادفع.${subNote.ar}`,
+    descriptionEn: `Choose the duration and pay.${subNote.en}`,
+    icon,
+    deliveryTimeAr: "من 10 دقائق إلى ساعة بعد تأكيد الدفع",
+    deliveryTimeEn: "10 minutes to 1 hour after payment is confirmed",
+    isFeatured: false,
+    sortOrder,
+    mode: "package",
+    packages,
+    maxPackages: 3,
+    fields: [emailField(email[0], email[1])],
+  });
+  const manage = (slug: string, nameAr: string, nameEn: string, sortOrder: number, prices: [number, number, number], detail: [string, string, string, string, string, string]): ProductSpec => ({
+    slug,
+    category: "account-management",
+    nameAr,
+    nameEn,
+    summaryAr: "باقات شهرية: أساسية، متقدمة، واحترافية — حسب نوع حسابك واحتياجك.",
+    summaryEn: "Monthly packages: basic, advanced and pro — by your account type and needs.",
+    descriptionAr:
+      `الباقات شهرية وتشمل:\n• أساسية: ${detail[0]}\n• متقدمة: ${detail[1]}\n• احترافية: ${detail[2]}\n\nبعد تأكيد الدفع نتواصل معك لنتفق على الخطة والمحتوى، ونُضاف كمسؤول أو شريك من الأدوات الرسمية (مثل Meta Business Suite) — لا نطلب كلمة المرور. ميزانية الإعلانات الممولة غير مشمولة وتدفعها للمنصة مباشرة. لا نضمن أعداد متابعين؛ نضمن عملاً منتظماً وتقريراً واضحاً.`,
+    descriptionEn:
+      `Monthly packages include:\n• Basic: ${detail[3]}\n• Advanced: ${detail[4]}\n• Pro: ${detail[5]}\n\nAfter payment we contact you to agree on the plan and content, and we are added as a manager or partner with official tools (such as Meta Business Suite) — no password. Ad spend is not included; you pay it to the platform directly. We do not guarantee follower numbers; we guarantee consistent work and a clear report.`,
+    icon: "briefcase",
+    deliveryTimeAr: "نتواصل معك خلال 24 ساعة من تأكيد الدفع",
+    deliveryTimeEn: "We contact you within 24 hours of payment",
+    isFeatured: false,
+    sortOrder,
+    mode: "package",
+    packages: [
+      pkg("أساسية — شهر", "Basic — 1 month", prices[0]),
+      pkg("متقدمة — شهر", "Advanced — 1 month", prices[1]),
+      pkg("احترافية — شهر", "Pro — 1 month", prices[2]),
+    ],
+    maxPackages: 3,
+    fields: [accountUrl, accountType, aboutField],
+  });
+
+  const products: ProductSpec[] = [
+    {
+      slug: "mobile-legends-diamonds",
+      category: "gaming",
+      nameAr: "ألماس موبايل ليجندز",
+      nameEn: "Mobile Legends Diamonds",
+      summaryAr: "شحن ألماس Mobile Legends: Bang Bang برقم اللاعب ورقم السيرفر فقط.",
+      summaryEn: "Mobile Legends: Bang Bang diamonds with your player ID and Zone ID only.",
+      descriptionAr:
+        "اختر الباقة واكتب رقم اللاعب (ID) ورقم السيرفر (Zone ID) — تلكاهم بالضغط على صورتك داخل اللعبة.\n\nلا نطلب كلمة المرور أبداً. الشحن على رقم خاطئ قد لا يمكن استرجاعه، فتأكد من الرقمين.",
+      descriptionEn:
+        "Choose a package and enter your player ID and Zone ID — tap your profile picture in the game to see them.\n\nWe never ask for your password. A top-up to a wrong ID may not be refundable, so check both numbers.",
+      icon: "gem",
+      deliveryTimeAr: FAST_AR,
+      deliveryTimeEn: FAST_EN,
+      isFeatured: true,
+      sortOrder: 15,
+      mode: "package",
+      packages: mlbb.map(([ar, en, usd]) => pkg(ar, en, fromUsd(usd))),
+      maxPackages: 10,
+      fields: [
+        { key: "player_id", labelAr: "رقم اللاعب (ID)", labelEn: "Player ID", helpAr: "الرقم الأول قبل القوسين.", helpEn: "The first number, before the brackets.", type: "number", required: true, maxLength: 20 },
+        { key: "zone_id", labelAr: "رقم السيرفر (Zone ID)", labelEn: "Zone ID", helpAr: "الرقم بين القوسين، بدون الأقواس.", helpEn: "The number in brackets, without the brackets.", type: "number", required: true, maxLength: 8 },
+        { key: "player_name", labelAr: "اسم اللاعب (للتأكيد)", labelEn: "Player name (for confirmation)", helpAr: "", helpEn: "", type: "text", required: false, maxLength: 40 },
+      ],
+    },
+    card("playstation-gift-card", "بطاقة بلايستيشن (PSN)", "PlayStation Gift Card (PSN)", "gamepad", 10, [10, 25, 50], true),
+    card("steam-gift-card", "بطاقة ستيم (Steam)", "Steam Wallet Card", "gamepad", 20, [10, 20, 50]),
+    card("google-play-gift-card", "بطاقة جوجل بلاي", "Google Play Gift Card", "gift", 30, [10, 25, 50]),
+    card("app-store-gift-card", "بطاقة آب ستور وآيتونز", "App Store & iTunes Gift Card", "gift", 40, [10, 25, 50]),
+    card("xbox-gift-card", "بطاقة إكس بوكس", "Xbox Gift Card", "gamepad", 50, [10, 25, 50]),
+    // Shahid VIP: 4,999 IQD/month (Zain Iraq's official Shahid VIP offer).
+    sub("shahid-vip", "اشتراك شاهد VIP", "Shahid VIP", "tv", 60, [pkg("شهر", "1 month", fromIqd(4999)), pkg("3 أشهر", "3 months", fromIqd(4999 * 3))], ["بريد حساب شاهد", "Shahid account email"], ["مسلسلات وأفلام وبرامج عربية حصرية بدون إعلانات.", "Exclusive Arabic series, films and shows without ads."]),
+    // YouTube Premium: US$15.99/month (YouTube's published individual price; no IQD price published).
+    sub("youtube-premium", "اشتراك يوتيوب بريميوم", "YouTube Premium", "tv", 70, [pkg("شهر", "1 month", fromUsd(15.99))], ["بريد حساب Google", "Google account email"], ["يوتيوب بدون إعلانات، تشغيل بالخلفية وتنزيل الفيديوهات.", "YouTube without ads, background play and downloads."]),
+    // Spotify Premium Individual: IQD 4,900/month and IQD 49,000/year (spotify.com/iq).
+    sub("spotify-premium", "اشتراك سبوتيفاي بريميوم", "Spotify Premium", "music", 80, [pkg("شهر", "1 month", fromIqd(4900)), pkg("سنة", "1 year", fromIqd(49000))], ["بريد حساب سبوتيفاي", "Spotify account email"], ["موسيقى بدون إعلانات وتنزيل للاستماع بدون إنترنت.", "Ad-free music and downloads for offline listening."]),
+    // Netflix Iraq: Standard US$7.99, Premium US$9.99 per month.
+    sub("netflix", "اشتراك نتفليكس", "Netflix", "tv", 90, [pkg("Standard — شهر", "Standard — 1 month", fromUsd(7.99)), pkg("Premium — شهر", "Premium — 1 month", fromUsd(9.99))], ["بريد حساب نتفليكس", "Netflix account email"], ["أفلام ومسلسلات بجودة عالية على حسابك الخاص.", "Films and series in high quality on your own account."]),
+    // Canva Pro: US$18/month (Canva's published monthly price).
+    sub("canva-pro", "اشتراك Canva Pro", "Canva Pro", "palette", 100, [pkg("شهر", "1 month", fromUsd(18))], ["بريد حساب Canva", "Canva account email"], ["كل قوالب وأدوات Canva المدفوعة للتصميم.", "All of Canva's premium templates and tools."]),
+    // CapCut Pro: US$19.99/month (CapCut's US App Store price).
+    sub("capcut-pro", "اشتراك CapCut Pro", "CapCut Pro", "tv", 110, [pkg("شهر", "1 month", fromUsd(19.99))], ["بريد حساب CapCut", "CapCut account email"], ["مونتاج احترافي بدون علامة مائية مع مؤثرات Pro.", "Pro editing without watermark and with Pro effects."]),
+    // Design (owner's own work; prices set to suit the market).
+    {
+      slug: "logo-design",
+      category: "design",
+      nameAr: "تصميم شعار (لوگو)",
+      nameEn: "Logo Design",
+      summaryAr: "شعار احترافي لمشروعك مع ملفات جاهزة للطباعة والسوشل.",
+      summaryEn: "A professional logo with files ready for print and social media.",
+      descriptionAr: "• أساسي: مقترحين وتعديلين.\n• احترافي: 3 مقترحات، تعديلات أكثر، وملفات المصدر.\n• هوية مصغّرة: شعار + كرت أعمال + غلاف سوشل ميديا.",
+      descriptionEn: "• Basic: 2 concepts and 2 revisions.\n• Pro: 3 concepts, more revisions and source files.\n• Mini identity: logo + business card + social media cover.",
+      icon: "palette",
+      deliveryTimeAr: "من 2 إلى 5 أيام",
+      deliveryTimeEn: "2 to 5 days",
+      isFeatured: false,
+      sortOrder: 50,
+      mode: "package",
+      packages: [pkg("أساسي", "Basic", 50000), pkg("احترافي", "Pro", 100000), pkg("هوية مصغّرة", "Mini identity", 175000)],
+      maxPackages: 3,
+      fields: [
+        { key: "brand_name", labelAr: "اسم المشروع", labelEn: "Business name", helpAr: "", helpEn: "", type: "text", required: true, maxLength: 80 },
+        briefField("وصف الشعار المطلوب", "Describe the logo you want"),
+        refField,
+      ],
+    },
+    {
+      slug: "menu-design",
+      category: "design",
+      nameAr: "تصميم منيو مطعم أو كافيه",
+      nameEn: "Restaurant / Café Menu Design",
+      summaryAr: "منيو مرتب وجذاب للطباعة أو للعرض على الشاشة والسوشل.",
+      summaryEn: "A clear, attractive menu for print, screens or social media.",
+      descriptionAr: "اكتب أسماء الأصناف والأسعار، أو أرسل رابط ملف فيه القائمة، ونصمم المنيو بألوان مشروعك.",
+      descriptionEn: "Write the items and prices, or send a link to a file with the list, and we design the menu in your brand colours.",
+      icon: "palette",
+      deliveryTimeAr: "من 2 إلى 4 أيام",
+      deliveryTimeEn: "2 to 4 days",
+      isFeatured: false,
+      sortOrder: 60,
+      mode: "package",
+      packages: [pkg("صفحة واحدة", "1 page", 25000), pkg("صفحتين", "2 pages", 40000), pkg("منيو كامل حتى 6 صفحات", "Full menu up to 6 pages", 90000)],
+      maxPackages: 3,
+      fields: [briefField("الأصناف والأسعار والملاحظات", "Items, prices and notes"), refField],
+    },
+    {
+      slug: "business-card-design",
+      category: "design",
+      nameAr: "تصميم كرت أعمال (بزنس كارد)",
+      nameEn: "Business Card Design",
+      summaryAr: "كرت أعمال بوجهين جاهز للطباعة.",
+      summaryEn: "A two-sided business card, print-ready.",
+      descriptionAr: "اكتب الاسم والمسمّى وأرقام التواصل، ونسلّمك ملف جاهز للطباعة.",
+      descriptionEn: "Send the name, title and contact details, and get a print-ready file.",
+      icon: "palette",
+      deliveryTimeAr: "من 1 إلى 3 أيام",
+      deliveryTimeEn: "1 to 3 days",
+      isFeatured: false,
+      sortOrder: 70,
+      mode: "unit",
+      unitPrice: 15000,
+      min: 1,
+      max: 10,
+      fields: [briefField("الاسم والمسمّى وبيانات التواصل", "Name, title and contact details"), refField],
+    },
+    {
+      slug: "invitation-design",
+      category: "design",
+      nameAr: "تصميم دعوة (عرس أو مناسبة)",
+      nameEn: "Invitation Design (wedding or event)",
+      summaryAr: "دعوة صورة أو فيديو متحرك لإرسالها على واتساب والسوشل.",
+      summaryEn: "An image or animated video invitation to share on WhatsApp and social media.",
+      descriptionAr: "اكتب الأسماء والتاريخ والمكان وأي نص تحبه، واختر صورة أو فيديو متحرك.",
+      descriptionEn: "Send the names, date, place and any wording you like, and choose an image or an animated video.",
+      icon: "image",
+      deliveryTimeAr: "من 1 إلى 3 أيام",
+      deliveryTimeEn: "1 to 3 days",
+      isFeatured: false,
+      sortOrder: 80,
+      mode: "package",
+      packages: [pkg("دعوة صورة", "Image invitation", 15000), pkg("دعوة فيديو متحرك", "Animated video invitation", 35000)],
+      maxPackages: 5,
+      fields: [briefField("الأسماء والتاريخ والمكان والنص", "Names, date, place and wording"), refField],
+    },
+    // Video editing.
+    {
+      slug: "reels-montage",
+      category: "montage",
+      nameAr: "مونتاج ريلز وتيك توك",
+      nameEn: "Reels & TikTok Editing",
+      summaryAr: "مونتاج سريع ومرتب حتى 60 ثانية مع نصوص وموسيقى وانتقالات.",
+      summaryEn: "Snappy edits up to 60 seconds with captions, music and transitions.",
+      descriptionAr: "أرسل رابط الفيديوهات (مثل Google Drive) واكتب الفكرة والأسلوب. كل ريل حتى 60 ثانية مع تعديل واحد.",
+      descriptionEn: "Send a link to your clips (e.g. Google Drive) and describe the idea and style. Each reel is up to 60 seconds with one revision.",
+      icon: "tv",
+      deliveryTimeAr: "من 1 إلى 3 أيام",
+      deliveryTimeEn: "1 to 3 days",
+      isFeatured: true,
+      sortOrder: 10,
+      mode: "package",
+      packages: [pkg("ريل واحد", "1 reel", 15000), pkg("5 ريلز", "5 reels", 65000), pkg("10 ريلز", "10 reels", 120000), pkg("20 ريل", "20 reels", 220000)],
+      maxPackages: 5,
+      fields: [briefField("الفكرة والأسلوب", "Idea and style"), { ...refField, labelAr: "رابط الفيديوهات", labelEn: "Clips link", required: true }],
+    },
+    {
+      slug: "ad-video-montage",
+      category: "montage",
+      nameAr: "مونتاج فيديو إعلاني",
+      nameEn: "Ad Video Editing",
+      summaryAr: "فيديو إعلاني لمشروعك مع نصوص وموسيقى وشعارك.",
+      summaryEn: "A promotional video for your business with captions, music and your logo.",
+      descriptionAr: "أرسل المواد المتوفرة (فيديوهات، صور، شعار) واكتب الرسالة الإعلانية. يشمل تعديلين.",
+      descriptionEn: "Send the material you have (clips, photos, logo) and your ad message. Includes two revisions.",
+      icon: "megaphone",
+      deliveryTimeAr: "من 2 إلى 4 أيام",
+      deliveryTimeEn: "2 to 4 days",
+      isFeatured: false,
+      sortOrder: 20,
+      mode: "package",
+      packages: [pkg("إعلان قصير حتى 30 ثانية", "Short ad up to 30 seconds", 30000), pkg("إعلان حتى دقيقتين", "Ad up to 2 minutes", 50000)],
+      maxPackages: 3,
+      fields: [briefField("الرسالة الإعلانية والتفاصيل", "Ad message and details"), { ...refField, labelAr: "رابط المواد", labelEn: "Material link", required: true }],
+    },
+    {
+      slug: "youtube-montage",
+      category: "montage",
+      nameAr: "مونتاج فيديو يوتيوب",
+      nameEn: "YouTube Video Editing",
+      summaryAr: "قص وترتيب ونصوص وموسيقى لفيديوهات اليوتيوب.",
+      summaryEn: "Cutting, pacing, captions and music for YouTube videos.",
+      descriptionAr: "أرسل رابط التسجيل الخام واكتب طريقة المونتاج المطلوبة. يشمل تعديل واحد.",
+      descriptionEn: "Send a link to the raw footage and describe the editing you want. Includes one revision.",
+      icon: "tv",
+      deliveryTimeAr: "من 2 إلى 5 أيام",
+      deliveryTimeEn: "2 to 5 days",
+      isFeatured: false,
+      sortOrder: 30,
+      mode: "package",
+      packages: [pkg("حتى 10 دقائق", "Up to 10 minutes", 40000), pkg("حتى 20 دقيقة", "Up to 20 minutes", 70000)],
+      maxPackages: 5,
+      fields: [briefField("طريقة المونتاج المطلوبة", "Editing you want"), { ...refField, labelAr: "رابط التسجيل الخام", labelEn: "Raw footage link", required: true }],
+    },
+    // Account management (monthly).
+    manage("manage-instagram", "إدارة حساب إنستغرام", "Instagram Account Management", 10, [125000, 200000, 350000], [
+      "12 منشور شهرياً + الرد على التعليقات",
+      "20 منشور + 10 ستوري + 4 ريلز + الرد على الرسائل",
+      "30 منشور + 8 ريلز + ستوري يومي + إدارة إعلان + تقرير شهري",
+      "12 posts a month + replying to comments",
+      "20 posts + 10 stories + 4 reels + replying to messages",
+      "30 posts + 8 reels + daily stories + ad management + monthly report",
+    ]),
+    manage("manage-tiktok", "إدارة حساب تيك توك", "TikTok Account Management", 20, [150000, 250000, 400000], [
+      "8 فيديوهات شهرياً + اختيار الترندات",
+      "15 فيديو + كتابة الأفكار + الرد على التعليقات",
+      "30 فيديو + خطة محتوى + إدارة إعلان + تقرير شهري",
+      "8 videos a month + trend selection",
+      "15 videos + idea writing + replying to comments",
+      "30 videos + content plan + ad management + monthly report",
+    ]),
+    manage("manage-facebook", "إدارة صفحة فيسبوك", "Facebook Page Management", 30, [100000, 175000, 300000], [
+      "12 منشور شهرياً + الرد على التعليقات",
+      "20 منشور + الرد على الرسائل + تحسين الصفحة",
+      "30 منشور + إدارة إعلان + تقرير شهري",
+      "12 posts a month + replying to comments",
+      "20 posts + replying to messages + page optimisation",
+      "30 posts + ad management + monthly report",
+    ]),
+    manage("manage-all-platforms", "إدارة متكاملة لكل المنصات", "All-Platform Management", 40, [300000, 500000, 800000], [
+      "إنستغرام + فيسبوك: 12 منشور مشترك + الردود",
+      "إنستغرام + فيسبوك + تيك توك: 20 منشور + 8 فيديو + الردود",
+      "كل المنصات: محتوى يومي + ريلز + إدارة إعلانات + تقرير شهري",
+      "Instagram + Facebook: 12 shared posts + replies",
+      "Instagram + Facebook + TikTok: 20 posts + 8 videos + replies",
+      "All platforms: daily content + reels + ad management + monthly report",
+    ]),
+    {
+      slug: "manage-ad-campaigns",
+      category: "account-management",
+      nameAr: "إدارة الحملات الإعلانية الممولة",
+      nameEn: "Paid Ad Campaign Management",
+      summaryAr: "إعداد ومتابعة إعلاناتك على إنستغرام وفيسبوك وتيك توك — رسوم الإدارة فقط.",
+      summaryEn: "Setting up and managing your Instagram, Facebook and TikTok ads — management fee only.",
+      descriptionAr:
+        "نختار الجمهور ونكتب الإعلان ونتابع النتائج ونحسّنها. ميزانية الإعلان غير مشمولة وتدفعها أنت للمنصة مباشرة من حسابك. نُضاف كشريك إعلاني — لا نطلب كلمة المرور.",
+      descriptionEn:
+        "We choose the audience, write the ad, track the results and improve them. Ad spend is not included; you pay it to the platform from your own account. We are added as an ad partner — no password.",
+      icon: "megaphone",
+      deliveryTimeAr: "نتواصل معك خلال 24 ساعة من تأكيد الدفع",
+      deliveryTimeEn: "We contact you within 24 hours of payment",
+      isFeatured: false,
+      sortOrder: 50,
+      mode: "package",
+      packages: [pkg("حملة واحدة (إعداد + متابعة أسبوعين)", "One campaign (setup + 2 weeks)", 25000), pkg("إدارة شهرية حتى 4 حملات", "Monthly, up to 4 campaigns", 75000)],
+      maxPackages: 3,
+      fields: [accountUrl, accountType, aboutField],
+    },
+  ];
+  await upsertProducts(tx, products);
+
+  // Delivery times: game top-ups, gift cards and Telegram within 10–20 minutes of payment confirmation.
+  const fast = ["pubg-mobile-uc", "ludo-star-diamonds", "ludo-star-gold", "free-fire-diamonds", "telegram-premium", "telegram-stars", "whatsapp-telegram-number"];
+  await tx.update(schema.products).set({ deliveryTimeAr: FAST_AR, deliveryTimeEn: FAST_EN }).where(inArray(schema.products.slug, fast));
+  const subs = ["chatgpt-plus", "chatgpt-go", "gemini", "claude", "iphone-plus-yearly", "design-tool-subscription"];
+  await tx
+    .update(schema.products)
+    .set({ deliveryTimeAr: "من 10 دقائق إلى ساعة بعد تأكيد الدفع", deliveryTimeEn: "10 minutes to 1 hour after payment is confirmed" })
+    .where(inArray(schema.products.slug, subs));
+  const social = ["instagram-followers", "tiktok-followers", "telegram-members", "facebook-followers", "instagram-likes", "tiktok-likes", "tiktok-views"];
+  await tx
+    .update(schema.products)
+    .set({ deliveryTimeAr: "يبدأ خلال 10 إلى 20 دقيقة من تأكيد الدفع ويكتمل خلال 48 ساعة كحد أقصى", deliveryTimeEn: "Starts within 10–20 minutes of payment; completes within 48 hours at most" })
+    .where(inArray(schema.products.slug, social));
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
@@ -740,6 +1249,8 @@ const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v6", run: catalogV6 },
   { id: "2026-10-26-policies-v7", run: catalogV7 },
   { id: "2026-10-27-privacy-v8", run: privacyV8 },
+  { id: "2026-10-27-super-qi-v9", run: superQiV9 },
+  { id: "2026-10-27-catalog-v10", run: catalogV10 },
 ];
 
 const KEY = "content_updates";

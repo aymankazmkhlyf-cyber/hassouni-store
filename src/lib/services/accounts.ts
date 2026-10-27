@@ -5,18 +5,32 @@ import { burnPasswordCheck, hashPassword, verifyPassword } from "@/lib/auth/pass
 import { invalidateUserSessions } from "@/lib/auth/session";
 import { escapeLike } from "./catalog";
 import { audit, type Actor } from "./audit";
+import { ServiceError } from "./orders";
+import { normalizeUsername, usernameProblem } from "./wallet";
 
+/** Returns the new user, or the reason it could not be created. */
 export async function registerCustomer(
-  input: { name: string; email: string; phone: string | null; password: string },
+  input: { name: string; username: string; email: string; phone: string | null; password: string },
   conn: DbOrTx = db,
-) {
+): Promise<{ ok: true; user: { id: string; role: UserRole } } | { ok: false; reason: "emailTaken" | "usernameTaken" | "usernameInvalid" }> {
+  const username = normalizeUsername(input.username);
+  const problem = usernameProblem(username);
+  if (problem) return { ok: false, reason: problem === "usernameTaken" ? "usernameTaken" : "usernameInvalid" };
+  const taken = await conn.query.users.findFirst({ where: eq(users.username, username), columns: { id: true } });
+  if (taken) return { ok: false, reason: "usernameTaken" };
   const passwordHash = await hashPassword(input.password);
-  const rows = await conn
-    .insert(users)
-    .values({ name: input.name, email: input.email.toLowerCase(), phone: input.phone, passwordHash, role: "customer" })
-    .onConflictDoNothing({ target: users.email })
-    .returning({ id: users.id, role: users.role });
-  return rows[0] ?? null;
+  try {
+    const rows = await conn
+      .insert(users)
+      .values({ name: input.name, username, email: input.email.toLowerCase(), phone: input.phone, passwordHash, role: "customer" })
+      .onConflictDoNothing({ target: users.email })
+      .returning({ id: users.id, role: users.role });
+    return rows[0] ? { ok: true, user: rows[0] } : { ok: false, reason: "emailTaken" };
+  } catch (e) {
+    // Lost a race for the same username.
+    if ((e as { code?: string }).code === "23505") return { ok: false, reason: "usernameTaken" };
+    throw e;
+  }
 }
 
 export type AuthResult =
@@ -24,8 +38,12 @@ export type AuthResult =
   | { ok: false; reason: "invalid" | "suspended" };
 
 /** Constant-ish time: a dummy hash is verified when the account does not exist. */
-export async function authenticate(email: string, password: string, conn: DbOrTx = db): Promise<AuthResult> {
-  const user = await conn.query.users.findFirst({ where: eq(users.email, email.toLowerCase()) });
+export async function authenticate(identifier: string, password: string, conn: DbOrTx = db): Promise<AuthResult> {
+  const id = identifier.trim().toLowerCase();
+  // Customers may sign in with their wallet username instead of the email.
+  const user = await conn.query.users.findFirst({
+    where: id.includes("@") ? eq(users.email, id) : and(eq(users.username, normalizeUsername(id)), eq(users.role, "customer")),
+  });
   if (!user || user.anonymizedAt) {
     await burnPasswordCheck(password);
     return { ok: false, reason: "invalid" };
@@ -63,7 +81,7 @@ export async function listCustomers(opts: { q?: string; page?: number }, conn: D
   if (q) {
     const pattern = `%${escapeLike(q)}%`;
     const digits = q.replace(/\D/g, "").replace(/^0/, "");
-    conds.push(or(ilike(users.email, pattern), ilike(users.name, pattern), ...(digits.length >= 4 ? [ilike(users.phone, `%${digits}%`)] : []))!);
+    conds.push(or(ilike(users.email, pattern), ilike(users.name, pattern), ilike(users.username, `%${escapeLike(q.replace(/^@/, "").toLowerCase())}%`), ...(digits.length >= 4 ? [ilike(users.phone, `%${digits}%`)] : []))!);
   }
   const where = sql.join(conds, sql` AND `);
   const [rows, totalRow] = await Promise.all([
@@ -127,7 +145,7 @@ async function scrubOrders(tx: DbOrTx, orderIds: string[]) {
     .filter((x): x is string => !!x);
   await tx
     .update(orders)
-    .set({ customerName: ERASED, customerPhone: "", customerEmail: null, customerNotes: "", userId: null, anonymizedAt: new Date() })
+    .set({ customerName: ERASED, customerPhone: "", customerEmail: null, customerNotes: "", deliveryNote: "", userId: null, anonymizedAt: new Date() })
     .where(inArray(orders.id, orderIds));
   await tx.execute(sql`UPDATE order_items SET inputs = '[]'::jsonb WHERE order_id IN (${sql.join(orderIds.map((i) => sql`${i}::uuid`), sql`, `)})`);
   await tx.update(payments).set({ customerReference: null, receiptFileId: null }).where(inArray(payments.orderId, orderIds));
@@ -140,8 +158,10 @@ async function scrubOrders(tx: DbOrTx, orderIds: string[]) {
 /** Account deletion (by the customer or an admin): scrub linked orders, then delete the user row. */
 export async function anonymizeCustomer(id: string, actor: Actor | null, conn: DbOrTx = db) {
   await conn.transaction(async (tx) => {
-    const target = await tx.query.users.findFirst({ where: eq(users.id, id) });
+    const [target] = await tx.select().from(users).where(eq(users.id, id)).for("update");
     if (!target || target.role !== "customer") return;
+    // Money must be returned (and debited by an admin) before the account can be erased.
+    if (target.walletBalance > 0) throw new ServiceError("walletNotEmpty");
     const linked = await tx.select({ id: orders.id }).from(orders).where(eq(orders.userId, id));
     await scrubOrders(tx, linked.map((o) => o.id));
     await tx.update(customRequests).set({ userId: null, name: ERASED, phone: "", email: null, anonymizedAt: new Date() }).where(eq(customRequests.userId, id));

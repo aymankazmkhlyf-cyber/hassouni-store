@@ -260,7 +260,7 @@ try {
       assert.ok(body.includes(reference));
     });
     await step("admin pages render (EN, desktop)", async () => {
-      for (const p of ["products", "products/new", "categories", "payment-methods", "customers", "requests", "settings", "audit", "reviews"]) {
+      for (const p of ["products", "products/new", "categories", "payment-methods", "customers", "requests", "settings", "audit", "reviews", "wallet"]) {
         const r = await ap.goto(`${BASE}/en/admin/${p}`);
         assert.equal(r.status(), 200, p);
       }

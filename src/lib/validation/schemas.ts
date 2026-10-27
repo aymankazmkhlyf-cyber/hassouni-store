@@ -57,7 +57,8 @@ export const checkoutSchema = z.object({
   customerName: trimmed(80).min(2, "validation"),
   customerPhone: phoneSchema,
   customerEmail: optionalEmail,
-  paymentMethodId: z.coerce.number().int().positive("paymentMethod"),
+  /** A manual payment method id, or "wallet" to pay from the logged-in customer's balance. */
+  paymentMethodId: z.union([z.literal("wallet"), z.coerce.number().int().positive("paymentMethod")]),
   customerNotes: trimmed(1000).default(""),
   acceptTerms: z.literal("on", { message: "termsRequired" }),
   locale: z.enum(["ar", "en"]).default("ar"),
@@ -97,13 +98,19 @@ export const reviewReplySchema = z.object({
   reply: trimmed(1000).default(""),
 });
 
+/** Email address, or a wallet username for customers. */
 export const loginSchema = z.object({
-  email: requiredEmail,
+  email: z.string().trim().toLowerCase().min(3).max(200),
   password: z.string().min(1).max(200),
 });
 
 export const registerSchema = z.object({
   name: trimmed(80).min(2, "validation"),
+  username: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@/, "").toLowerCase())
+    .pipe(z.string().regex(/^[a-z][a-z0-9_.]{2,19}$/, "usernameInvalid").refine((v) => !v.includes(".."), "usernameInvalid")),
   email: requiredEmail,
   phone: z
     .string()

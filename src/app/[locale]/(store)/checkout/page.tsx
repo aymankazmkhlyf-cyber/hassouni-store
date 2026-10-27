@@ -24,6 +24,7 @@ export default async function CheckoutPage({ params }: LocaleParams) {
         <CheckoutForm
           locale={locale}
           loggedIn={!!user}
+          wallet={user?.role === "customer" ? { balance: user.walletBalance } : null}
           ordersEnabled={settings.ordersEnabled}
           defaults={{ name: user?.name ?? "", phone: user?.phone ?? "", email: user?.email ?? "" }}
           methods={methods.map((m) => ({ id: m.id, name: ar ? m.nameAr : m.nameEn, instructions: ar ? m.instructionsAr : m.instructionsEn }))}
@@ -38,6 +39,12 @@ export default async function CheckoutPage({ params }: LocaleParams) {
             optional: t.common.optional,
             fixErrors: t.cart.fixErrors,
             backToCart: t.nav.cart,
+            walletName: t.wallet.payWithWallet,
+            walletAvailable: t.wallet.available,
+            walletInsufficient: t.wallet.insufficient,
+            walletTopup: t.wallet.topupLink,
+            walletInstant: t.wallet.walletInstant,
+            walletLogin: t.wallet.loginForWallet,
             errors: { ...t.errors },
           }}
         />

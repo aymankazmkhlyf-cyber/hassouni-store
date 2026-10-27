@@ -24,7 +24,7 @@ export default async function RegisterPage({ params, searchParams }: Props) {
         <RegisterForm
           locale={locale}
           next={next}
-          s={{ name: t.auth.name, email: t.auth.email, phone: t.auth.phone, password: t.auth.password, passwordHint: t.auth.passwordHint, submit: t.auth.submitRegister }}
+          s={{ name: t.auth.name, username: t.auth.username, usernameHint: t.auth.usernameHint, email: t.auth.email, phone: t.auth.phone, password: t.auth.password, passwordHint: t.auth.passwordHint, submit: t.auth.submitRegister }}
           errors={{ ...t.errors }}
         />
       </Card>

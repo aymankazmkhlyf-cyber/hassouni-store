@@ -2,6 +2,7 @@ import { asc, count, eq, ilike, or, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/lib/db";
 import {
   categories,
+  files,
   orderItems,
   paymentMethods,
   priceTiers,
@@ -228,8 +229,18 @@ export async function listPaymentMethods(opts: { enabledOnly?: boolean } = {}, c
     .orderBy(asc(paymentMethods.sortOrder), asc(paymentMethods.id));
 }
 
-export async function updatePaymentMethod(id: number, input: z.infer<typeof paymentMethodSchema>, actor: Actor, conn: DbOrTx = db) {
-  const [row] = await conn.update(paymentMethods).set(input).where(eq(paymentMethods.id, id)).returning({ code: paymentMethods.code });
+export async function updatePaymentMethod(
+  id: number,
+  input: z.infer<typeof paymentMethodSchema>,
+  actor: Actor,
+  qr: { fileId: string | null; remove: boolean } = { fileId: null, remove: false },
+  conn: DbOrTx = db,
+) {
+  const current = await conn.query.paymentMethods.findFirst({ where: eq(paymentMethods.id, id), columns: { qrFileId: true } });
+  if (!current) throw new ServiceError("notFound");
+  const qrFileId = qr.fileId ?? (qr.remove ? null : current.qrFileId);
+  const [row] = await conn.update(paymentMethods).set({ ...input, qrFileId }).where(eq(paymentMethods.id, id)).returning({ code: paymentMethods.code });
   if (!row) throw new ServiceError("notFound");
+  if (current.qrFileId && current.qrFileId !== qrFileId) await conn.delete(files).where(eq(files.id, current.qrFileId));
   await audit(actor, "payment_method.update", "payment_method", id, { code: row.code, enabled: input.isEnabled }, conn);
 }

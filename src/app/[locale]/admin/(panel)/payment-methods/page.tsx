@@ -39,6 +39,23 @@ export default async function AdminPaymentMethods({ params }: LocaleParams) {
               {f(p.instructionsEn, <Textarea name="instructionsEn" defaultValue={m.instructionsEn} maxLength={3000} rows={3} dir="ltr" />)}
               {f(p.accountDetails, <Input name="accountDetails" defaultValue={m.accountDetails} maxLength={300} dir="ltr" />, "sm:col-span-2")}
               {f(t.admin.categoriesPage.sortOrder, <Input name="sortOrder" type="number" defaultValue={m.sortOrder} dir="ltr" />)}
+              <div className="space-y-2 sm:col-span-2">
+                <span className="block text-xs font-semibold">{p.qr}</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  {m.qrFileId ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- DB-backed image route
+                    <img src={`/api/files/${m.qrFileId}`} alt="" className="size-24 rounded-lg border border-line object-contain" />
+                  ) : null}
+                  <input
+                    name="qr"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="text-sm file:me-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:font-semibold file:text-brand-soft-fg"
+                  />
+                  {m.qrFileId ? <Checkbox name="removeQr" label={p.removeQr} /> : null}
+                </div>
+                <p className="text-xs text-fg-muted">{p.qrHint}</p>
+              </div>
               <div className="flex flex-wrap items-end gap-4 sm:col-span-2">
                 <Checkbox name="isEnabled" defaultChecked={m.isEnabled} label={p.enabled} />
                 <Checkbox name="requiresReference" defaultChecked={m.requiresReference} label={p.requiresReference} />

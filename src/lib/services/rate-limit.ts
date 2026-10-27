@@ -19,6 +19,7 @@ export const RATE_LIMITS = {
   supportMessage: { limit: 20, windowSeconds: 10 * 60 },
   review: { limit: 15, windowSeconds: 60 * 60 },
   pushSubscribe: { limit: 10, windowSeconds: 60 * 60 },
+  walletTopup: { limit: 6, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

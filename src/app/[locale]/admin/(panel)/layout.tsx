@@ -23,6 +23,7 @@ export default async function AdminLayout({ children, params }: LocaleParams & {
     { href: `${a}/orders`, label: t.admin.orders, icon: "receipt", perm: "orders:read" },
     { href: `${a}/support`, label: t.admin.support, icon: "chat", perm: "support:manage" },
     { href: `${a}/reviews`, label: t.admin.reviews, icon: "star", perm: "reviews:manage" },
+    { href: `${a}/wallet`, label: t.admin.wallet, icon: "wallet", perm: "payments:review" },
     { href: `${a}/products`, label: t.admin.products, icon: "box", perm: "products:write" },
     { href: `${a}/categories`, label: t.admin.categories, icon: "grid", perm: "categories:write" },
     { href: `${a}/payment-methods`, label: t.admin.paymentMethods, icon: "card", perm: "payment_methods:write" },

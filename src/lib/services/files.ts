@@ -10,7 +10,7 @@ import { sha256 } from "@/lib/domain/tokens";
  */
 
 export async function storeFile(
-  kind: "product_image" | "receipt" | "logo",
+  kind: "product_image" | "receipt" | "logo" | "payment_qr",
   mime: string,
   bytes: Buffer,
   uploadedById: string | null,

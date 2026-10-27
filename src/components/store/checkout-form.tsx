@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { formatIQD } from "@/lib/domain/money";
 import { fmt, type Locale } from "@/lib/i18n/config";
 import { placeOrderAction } from "@/app/actions/checkout";
+import { openOrdersAction } from "@/app/actions/orders";
 import type { ActionState } from "@/app/actions/types";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
@@ -18,15 +19,20 @@ import { FormPendingContext, useActionForm } from "@/components/ui/use-action-fo
 import { useCart } from "./cart-provider";
 import { useServerQuote } from "./use-quote";
 import { lineErrorText } from "./cart-view";
+import { readRecentOrders } from "./recent-orders";
 
 export type CheckoutMethod = { id: number; name: string; instructions: string };
 
 export type CheckoutStrings = Record<
   | "contactInfo" | "name" | "phone" | "phoneHint" | "email" | "paymentMethod" | "manualNote" | "noMethods" | "notes"
   | "acceptTerms" | "terms" | "refund" | "placeOrder" | "placing" | "summary" | "loginSuggestion" | "login" | "noCardData"
-  | "total" | "empty" | "continue" | "optional" | "fixErrors" | "backToCart",
+  | "total" | "empty" | "continue" | "optional" | "fixErrors" | "backToCart"
+  | "openInProgress" | "openUnpaid" | "walletName" | "walletAvailable" | "walletInsufficient" | "walletTopup" | "walletInstant" | "walletLogin",
   string
 > & { errors: Record<string, string> };
+
+/** Logged-in customer's wallet, or null for guests and staff. */
+export type CheckoutWallet = { balance: number } | null;
 
 const KEY_STORE = "hds_checkout_attempt";
 
@@ -49,6 +55,7 @@ export function CheckoutForm({
   defaults,
   loggedIn,
   ordersEnabled,
+  wallet,
   s,
 }: {
   locale: Locale;
@@ -56,6 +63,7 @@ export function CheckoutForm({
   defaults: { name: string; phone: string; email: string };
   loggedIn: boolean;
   ordersEnabled: boolean;
+  wallet: CheckoutWallet;
   s: CheckoutStrings;
 }) {
   const uid = useId();
@@ -63,8 +71,30 @@ export function CheckoutForm({
   const { lines, ready, clear } = useCart();
   const { quote, loading } = useServerQuote(lines, ready);
   const { state, action, onSubmit, pending } = useActionForm(placeOrderAction, {});
-  const [methodId, setMethodId] = useState<number | null>(methods[0]?.id ?? null);
+  const [methodId, setMethodId] = useState<number | "wallet" | null>(wallet && wallet.balance > 0 ? "wallet" : (methods[0]?.id ?? null));
   const [idempotencyKey, setKey] = useState("");
+  const [open, setOpen] = useState<{ unpaid: string[]; inProgress: string[]; keys: Record<string, string> }>({ unpaid: [], inProgress: [], keys: {} });
+
+  // Warn about this customer's orders that are still open (see openOrdersAction).
+  useEffect(() => {
+    const recent = readRecentOrders();
+    if (!recent.length && !loggedIn) return;
+    let alive = true;
+    openOrdersAction(recent.map(({ ref, key }) => ({ ref, key })))
+      .then((r) => alive && setOpen({ ...r, keys: Object.fromEntries(recent.map((x) => [x.ref, x.key])) }))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [loggedIn]);
+  const orderHref = (ref: string) => `/${locale}/orders/${ref}${open.keys[ref] ? `?key=${open.keys[ref]}` : ""}`;
+  const refLinks = (refs: string[]) =>
+    refs.map((r, i) => (
+      <span key={r}>
+        {i ? "، " : ""}
+        <Link href={orderHref(r)} className="ltr-nums font-bold underline" dir="ltr">{r}</Link>
+      </span>
+    ));
 
   const payload = JSON.stringify(lines.map(({ productId, packageId, quantity, inputs }) => ({ productId, packageId, quantity, inputs })));
   useEffect(() => {
@@ -96,7 +126,9 @@ export function CheckoutForm({
   const fe = state.fieldErrors ?? {};
   const err = (k: string) => (fe[k] ? fmt(s.errors[fe[k]!] ?? s.errors.validation ?? "", { field: "" }) : undefined);
   const selected = methods.find((m) => m.id === methodId);
-  const canSubmit = ordersEnabled && methods.length > 0 && !!quote?.valid && !loading && !!idempotencyKey;
+  const payByWallet = methodId === "wallet" && !!wallet;
+  const shortfall = payByWallet && quote?.valid ? Math.max(0, quote.total - wallet.balance) : 0;
+  const canSubmit = ordersEnabled && (methods.length > 0 || !!wallet) && !!quote?.valid && !loading && !!idempotencyKey && shortfall === 0;
 
   return (
     <form action={action} onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start" noValidate>
@@ -109,6 +141,17 @@ export function CheckoutForm({
         {state.error ? (
           <Alert tone="danger" title={s.errors[state.error] ?? s.errors.generic}>
             {state.error === "cartInvalid" ? <Link href={`/${locale}/cart`} className="font-semibold underline">{s.backToCart}</Link> : null}
+            {state.error === "activeOrderExists" && typeof state.data?.reference === "string" ? <p>{refLinks([state.data.reference])}</p> : null}
+          </Alert>
+        ) : null}
+        {open.inProgress.length ? (
+          <Alert tone="warning" title={s.openInProgress} className="animate-in">
+            <p>{refLinks(open.inProgress)}</p>
+          </Alert>
+        ) : null}
+        {open.unpaid.length ? (
+          <Alert tone="info" title={s.openUnpaid}>
+            <p>{refLinks(open.unpaid)}</p>
           </Alert>
         ) : null}
         {!loggedIn ? (
@@ -135,12 +178,22 @@ export function CheckoutForm({
 
         <section className="space-y-4 rounded-(--radius-card) border border-line bg-elevated p-5 shadow-soft">
           <h2 className="font-bold">{s.paymentMethod}</h2>
-          {methods.length === 0 ? (
+          {methods.length === 0 && !wallet ? (
             <Alert tone="warning">{s.noMethods}</Alert>
           ) : (
             <fieldset>
               <legend className="sr-only">{s.paymentMethod}</legend>
               <div className="grid gap-2 sm:grid-cols-2">
+                {wallet ? (
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line-strong p-3.5 has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand sm:col-span-2">
+                    <input type="radio" name="paymentMethodId" value="wallet" checked={methodId === "wallet"} onChange={() => setMethodId("wallet")} className="size-4 accent-(--brand)" />
+                    <Icon name="wallet" className="size-5 text-brand" />
+                    <span className="flex-1">
+                      <span className="block font-semibold">{s.walletName}</span>
+                      <span className="ltr-nums block text-xs text-fg-muted">{fmt(s.walletAvailable, { amount: formatIQD(wallet.balance, locale) })}</span>
+                    </span>
+                  </label>
+                ) : null}
                 {methods.map((m) => (
                   <label key={m.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-line-strong p-3.5 has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand">
                     <input type="radio" name="paymentMethodId" value={m.id} checked={methodId === m.id} onChange={() => setMethodId(m.id)} className="size-4 accent-(--brand)" />
@@ -152,8 +205,21 @@ export function CheckoutForm({
               {err("paymentMethodId") ? <p className="mt-2 text-xs font-semibold text-danger">{err("paymentMethodId")}</p> : null}
             </fieldset>
           )}
-          {selected?.instructions ? <p className="rounded-xl bg-muted p-3 text-sm whitespace-pre-line text-fg-muted">{selected.instructions}</p> : null}
-          <Alert tone="info">{s.manualNote}</Alert>
+          {payByWallet ? (
+            shortfall > 0 ? (
+              <Alert tone="warning" title={fmt(s.walletInsufficient, { amount: formatIQD(shortfall, locale) })}>
+                <Link href={`/${locale}/account/wallet#topup`} className="font-semibold underline">{s.walletTopup}</Link>
+              </Alert>
+            ) : (
+              <Alert tone="success">{s.walletInstant}</Alert>
+            )
+          ) : (
+            <>
+              {selected?.instructions ? <p className="rounded-xl bg-muted p-3 text-sm whitespace-pre-line text-fg-muted">{selected.instructions}</p> : null}
+              <Alert tone="info">{s.manualNote}</Alert>
+              {!loggedIn ? <p className="text-xs text-fg-muted">{s.walletLogin}</p> : null}
+            </>
+          )}
           <p className="flex items-center gap-2 text-xs text-fg-muted">
             <Icon name="shield" className="size-4 shrink-0 text-success" /> {s.noCardData}
           </p>

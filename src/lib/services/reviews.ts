@@ -168,3 +168,12 @@ export async function replyToReview(id: number, reply: string, actor: Actor, con
   if (!row) throw new ServiceError("notFound");
   await audit(actor, "review.reply", "review", id, { removed: !text || undefined }, conn);
 }
+
+/** Real numbers for the home page: completed orders and the overall published rating. */
+export async function storeStats(conn: DbOrTx = db) {
+  const [row] = await conn.execute<{ completed: number; rating: string | null; reviews: number }>(sql`
+    SELECT (SELECT count(*) FROM orders WHERE status = 'completed')::int AS completed,
+           (SELECT round(avg(rating)::numeric, 1) FROM reviews WHERE status = 'published')::text AS rating,
+           (SELECT count(*) FROM reviews WHERE status = 'published')::int AS reviews`).then((r) => r.rows);
+  return { completed: Number(row?.completed ?? 0), rating: row?.rating ? Number(row.rating) : null, reviews: Number(row?.reviews ?? 0) };
+}

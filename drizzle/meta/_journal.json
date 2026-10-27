@@ -29,6 +29,13 @@
       "when": 1793099622946,
       "tag": "0003_reviews_push",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793102877471,
+      "tag": "0004_wallet_qr",
+      "breakpoints": true
     }
   ]
 }

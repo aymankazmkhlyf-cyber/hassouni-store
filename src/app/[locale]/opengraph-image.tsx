@@ -26,7 +26,7 @@ export default function OpengraphImage() {
           <div style={{ fontSize: 40, fontWeight: 700, opacity: 0.9 }}>Hassouni Digital Services</div>
         </div>
         <div style={{ fontSize: 76, fontWeight: 800, marginTop: 40, lineHeight: 1.1 }}>Followers · Game top-ups · Subscriptions · Design</div>
-        <div style={{ fontSize: 34, marginTop: 28, opacity: 0.85 }}>Iraq · Zain Cash · AsiaCell · Mastercard · Live support</div>
+        <div style={{ fontSize: 34, marginTop: 28, opacity: 0.85 }}>Iraq · Zain Cash · AsiaCell · Qi Card · Live support</div>
       </div>
     ),
     size,

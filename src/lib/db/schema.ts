@@ -63,7 +63,7 @@ export const pricingMode = pgEnum("pricing_mode", ["unit", "package"]);
 
 export const fieldType = pgEnum("field_type", ["text", "textarea", "url", "number", "select", "phone"]);
 
-export const fileKind = pgEnum("file_kind", ["product_image", "receipt", "logo"]);
+export const fileKind = pgEnum("file_kind", ["product_image", "receipt", "logo", "payment_qr"]);
 
 export const requestStatus = pgEnum("request_status", ["new", "in_review", "quoted", "closed"]);
 
@@ -75,6 +75,9 @@ export const supportSender = pgEnum("support_sender", ["customer", "staff", "bot
 export const supportStatus = pgEnum("support_status", ["open", "closed"]);
 
 export const reviewStatus = pgEnum("review_status", ["published", "hidden"]);
+
+export const walletTxType = pgEnum("wallet_tx_type", ["topup", "admin_credit", "admin_debit", "order_payment", "order_refund"]);
+export const topupStatus = pgEnum("topup_status", ["submitted", "approved", "rejected"]);
 
 /* ------------------------------------------------------------------ */
 /* Users & sessions                                                    */
@@ -88,6 +91,10 @@ export const users = pgTable(
     email: text("email").notNull(),
     name: text("name").notNull(),
     phone: text("phone"),
+    /** Public wallet ID / login name (lower-case). Optional for staff and older accounts. */
+    username: text("username"),
+    /** Wallet balance in IQD; only changed together with a wallet_transactions row. */
+    walletBalance: integer("wallet_balance").notNull().default(0),
     passwordHash: text("password_hash").notNull(),
     role: userRole("role").notNull().default("customer"),
     status: userStatus("status").notNull().default("active"),
@@ -95,7 +102,12 @@ export const users = pgTable(
     anonymizedAt: timestamp("anonymized_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [uniqueIndex("users_email_uq").on(t.email), index("users_role_idx").on(t.role)],
+  (t) => [
+    uniqueIndex("users_email_uq").on(t.email),
+    uniqueIndex("users_username_uq").on(t.username),
+    index("users_role_idx").on(t.role),
+    check("users_wallet_ck", sql`${t.walletBalance} >= 0`),
+  ],
 );
 
 export const sessions = pgTable(
@@ -290,6 +302,8 @@ export const paymentMethods = pgTable(
     allowsReceipt: boolean("allows_receipt").notNull().default(true),
     isEnabled: boolean("is_enabled").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** Optional transfer QR (e.g. Super Qi) shown to the customer with the payment details. */
+    qrFileId: uuid("qr_file_id").references(() => files.id, { onDelete: "set null" }),
     ...timestamps,
   },
   (t) => [uniqueIndex("payment_methods_code_uq").on(t.code)],
@@ -316,6 +330,8 @@ export const orders = pgTable(
     customerEmail: text("customer_email"),
     customerNotes: text("customer_notes").notNull().default(""),
     adminNotes: text("admin_notes").notNull().default(""),
+    /** Message for the customer shown on the order page (e.g. a gift-card code or delivery details). */
+    deliveryNote: text("delivery_note").notNull().default(""),
     status: orderStatus("status").notNull().default("pending_payment"),
     paymentMethodId: integer("payment_method_id").references(() => paymentMethods.id, { onDelete: "set null" }),
     paymentMethodCode: text("payment_method_code").notNull(),
@@ -570,6 +586,54 @@ export const pushSubscriptions = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
+/* Customer wallet                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Customer asks to add balance after paying through a manual method; staff reviews it. */
+export const walletTopups = pgTable(
+  "wallet_topups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    amount: integer("amount").notNull(),
+    methodCode: text("method_code").notNull(),
+    methodNameAr: text("method_name_ar").notNull(),
+    methodNameEn: text("method_name_en").notNull(),
+    customerReference: text("customer_reference"),
+    receiptFileId: uuid("receipt_file_id").references(() => files.id, { onDelete: "set null" }),
+    status: topupStatus("status").notNull().default("submitted"),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    ...timestamps,
+  },
+  (t) => [index("wallet_topups_user_idx").on(t.userId), index("wallet_topups_status_idx").on(t.status), check("wallet_topups_amount_ck", sql`${t.amount} > 0`)],
+);
+
+/** Append-only ledger: every balance change has exactly one row. */
+export const walletTransactions = pgTable(
+  "wallet_transactions",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    type: walletTxType("type").notNull(),
+    /** Positive = credit, negative = debit. */
+    amount: integer("amount").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    topupId: uuid("topup_id").references(() => walletTopups.id, { onDelete: "set null" }),
+    staffId: uuid("staff_id").references(() => users.id, { onDelete: "set null" }),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wallet_tx_user_idx").on(t.userId, t.id),
+    uniqueIndex("wallet_tx_order_type_uq").on(t.orderId, t.type),
+    check("wallet_tx_ck", sql`${t.amount} <> 0 AND ${t.balanceAfter} >= 0`),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
 /* Relations                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -637,3 +701,5 @@ export type SupportThread = typeof supportThreads.$inferSelect;
 export type SupportMessage = typeof supportMessages.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type ReviewStatus = (typeof reviewStatus.enumValues)[number];
+export type WalletTxType = (typeof walletTxType.enumValues)[number];
+export type TopupStatus = (typeof topupStatus.enumValues)[number];

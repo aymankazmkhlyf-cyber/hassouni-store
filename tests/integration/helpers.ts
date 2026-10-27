@@ -25,7 +25,8 @@ export async function checkoutInput(overrides: Partial<CheckoutInput> = {}): Pro
   return {
     idempotencyKey: randomUUID(),
     customerName: "Test Customer",
-    customerPhone: "+9647701234567",
+    // A fresh phone per order, so tests do not trip the "same order already in progress" guard.
+    customerPhone: `+96477${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`,
     customerEmail: null,
     paymentMethodId: await enabledMethodId(),
     customerNotes: "",

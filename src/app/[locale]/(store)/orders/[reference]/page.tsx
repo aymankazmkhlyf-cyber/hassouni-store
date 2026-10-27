@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
-import { paymentMethods } from "@/lib/db/schema";
+import { paymentMethods, products } from "@/lib/db/schema";
 import { buildOrderSupportMessage } from "@/lib/domain/contact";
 import { formatIQD } from "@/lib/domain/money";
 import { customerCanSubmitPayment } from "@/lib/domain/order-status";
@@ -21,8 +21,13 @@ import { Icon } from "@/components/ui/icon";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/status-badge";
 import { ContactLinks } from "@/components/store/contact-links";
 import { PaymentProofForm } from "@/components/store/payment-proof-form";
+import { PaymentDetails, paymentDetailsStrings } from "@/components/store/payment-details";
 import { ReviewForm } from "@/components/store/review-form";
 import { OrderNotify } from "@/components/store/order-notify";
+import { RememberOrder } from "@/components/store/recent-orders";
+import { GuideHelp } from "@/components/store/guide-help";
+import { PAYMENT_GUIDES, getGuide } from "@/lib/i18n/guides";
+import { ReorderButton, type ReorderItem } from "@/components/store/reorder-button";
 import { isTerminal } from "@/lib/domain/order-status";
 import { emailConfigured } from "@/lib/services/email";
 import { getVapidKeys } from "@/lib/services/push";
@@ -61,6 +66,27 @@ export default async function OrderPage({ params, searchParams }: Props) {
   const canPay = customerCanSubmitPayment(order.status);
   const canReview = order.status === "completed";
   const myReviews = canReview ? await reviewsForOrder(order.id) : [];
+  // "Order again": same services, packages, quantities and details, if the services are still offered.
+  const productIds = order.items.map((i) => i.productId).filter((x): x is number => x != null);
+  const activeProducts = canReview && productIds.length
+    ? await db.select({ id: products.id, slug: products.slug }).from(products).where(and(inArray(products.id, productIds), eq(products.isActive, true)))
+    : [];
+  const reorderItems: ReorderItem[] = order.items.flatMap((i) => {
+    const p = activeProducts.find((x) => x.id === i.productId);
+    if (!p || !i.productId) return [];
+    return [{
+      productId: i.productId,
+      slug: p.slug,
+      packageId: i.packageId,
+      quantity: i.quantity,
+      inputs: Object.fromEntries(i.inputs.map((x) => [x.key, x.value])),
+      nameAr: i.productNameAr,
+      nameEn: i.productNameEn,
+      packageLabelAr: i.packageLabelAr,
+      packageLabelEn: i.packageLabelEn,
+      unitPrice: i.unitPrice,
+    }];
+  });
   // Updates still to come: offer notifications until the order is delivered or closed.
   const canNotify = !isTerminal(order.status) && order.status !== "completed";
   const vapidPublicKey = canNotify ? (await getVapidKeys()).publicKey : "";
@@ -76,6 +102,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
+      {key ? <RememberOrder reference={order.reference} accessKey={key} /> : null}
       {isNew ? (
         <div className="animate-in rounded-(--radius-card) border border-success/30 bg-success-soft p-5 sm:p-6">
           <div className="flex items-start gap-3">
@@ -116,6 +143,14 @@ export default async function OrderPage({ params, searchParams }: Props) {
         </dl>
       </section>
 
+      {order.deliveryNote ? (
+        <section className="space-y-2 rounded-(--radius-card) border border-success/40 bg-success-soft p-5" data-testid="delivery-note">
+          <h2 className="flex items-center gap-2 font-bold text-success"><Icon name="gift" className="size-5" /> {t.order.deliveryNote}</h2>
+          <p className="ltr-nums text-sm font-semibold whitespace-pre-line break-words select-all" dir="auto">{order.deliveryNote}</p>
+          <CopyButton value={order.deliveryNote} label={t.common.copy} copiedLabel={t.common.copied} />
+        </section>
+      ) : null}
+
       {canNotify ? (
         <OrderNotify
           reference={order.reference}
@@ -135,26 +170,10 @@ export default async function OrderPage({ params, searchParams }: Props) {
             <li>{t.order.stepProof}</li>
             <li>{t.order.stepWait}</li>
           </ol>
-          <div className="grid gap-3 rounded-xl bg-muted p-4 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-fg-subtle">{t.order.amountDue}</p>
-              <p className="ltr-nums text-2xl font-black" dir="ltr">{formatIQD(order.total, locale)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-fg-subtle">{t.order.payTo}</p>
-              {method?.accountDetails ? (
-                <p className="flex items-center gap-2">
-                  <span className="ltr-nums font-bold" dir="ltr">{method.accountDetails}</span>
-                  <CopyButton value={method.accountDetails} label={t.common.copy} copiedLabel={t.common.copied} />
-                </p>
-              ) : (
-                <p className="text-sm text-fg-muted">{t.order.payToMissing}</p>
-              )}
-            </div>
-            {method && (ar ? method.instructionsAr : method.instructionsEn) ? (
-              <p className="text-sm whitespace-pre-line text-fg-muted sm:col-span-2">{ar ? method.instructionsAr : method.instructionsEn}</p>
-            ) : null}
-          </div>
+          <PaymentDetails method={method} amount={order.total} locale={locale} s={paymentDetailsStrings(t)} />
+          {method && PAYMENT_GUIDES[method.code] && getGuide(PAYMENT_GUIDES[method.code]!) ? (
+            <GuideHelp guide={getGuide(PAYMENT_GUIDES[method.code]!)!} locale={locale} summary={t.guides.howToPay} readMore={t.guides.readMore} />
+          ) : null}
           {payment?.status === "rejected" && payment.reviewNote ? (
             <Alert tone="danger" title={t.order.rejectedReason}>{payment.reviewNote}</Alert>
           ) : null}
@@ -205,6 +224,13 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <span className="ltr-nums text-xl font-black" dir="ltr">{formatIQD(order.total, locale)}</span>
         </div>
       </section>
+
+      {canReview && reorderItems.length ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-(--radius-card) border border-line bg-elevated p-4 shadow-soft">
+          <p className="text-sm text-fg-muted">{t.order.reorderHint}</p>
+          <ReorderButton items={reorderItems} locale={locale} label={t.order.reorder} />
+        </div>
+      ) : null}
 
       {canReview ? (
         <section id="review" className="space-y-3 rounded-(--radius-card) border border-amber-400/40 bg-elevated p-5 shadow-soft">

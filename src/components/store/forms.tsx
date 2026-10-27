@@ -57,7 +57,7 @@ export function LoginForm({
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {state.error ? <Alert tone="danger" title={msg(errors, state.error)} /> : null}
       <Field id={`${uid}-email`} label={s.email} required>
-        <Input {...aria(`${uid}-email`)} name="email" type="email" dir="ltr" autoComplete="username" required maxLength={200} />
+        <Input {...aria(`${uid}-email`)} name="email" type={mode === "staff" ? "email" : "text"} dir="ltr" autoComplete="username" autoCapitalize="none" required maxLength={200} />
       </Field>
       <Field id={`${uid}-password`} label={s.password} required>
         <Input {...aria(`${uid}-password`)} name="password" type="password" dir="ltr" autoComplete="current-password" required maxLength={200} />
@@ -76,7 +76,7 @@ export function RegisterForm({
 }: {
   locale: Locale;
   next?: string;
-  s: { name: string; email: string; phone: string; password: string; passwordHint: string; submit: string };
+  s: { name: string; username: string; usernameHint: string; email: string; phone: string; password: string; passwordHint: string; submit: string };
   errors: Errors;
 }) {
   const uid = useId();
@@ -90,6 +90,9 @@ export function RegisterForm({
       {state.error ? <Alert tone="danger" title={msg(errors, state.error)} /> : null}
       <Field id={`${uid}-name`} label={s.name} required error={msg(errors, fe.name)}>
         <Input {...aria(`${uid}-name`, fe.name)} name="name" autoComplete="name" required maxLength={80} />
+      </Field>
+      <Field id={`${uid}-username`} label={s.username} required hint={s.usernameHint} error={msg(errors, fe.username)}>
+        <Input {...aria(`${uid}-username`, fe.username, s.usernameHint)} name="username" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={21} pattern="@?[A-Za-z][A-Za-z0-9_.]{2,19}" />
       </Field>
       <Field id={`${uid}-email`} label={s.email} required error={msg(errors, fe.email)}>
         <Input {...aria(`${uid}-email`, fe.email)} name="email" type="email" dir="ltr" autoComplete="email" required maxLength={200} />

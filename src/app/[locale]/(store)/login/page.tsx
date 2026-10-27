@@ -21,7 +21,7 @@ export default async function LoginPage({ params, searchParams }: Props) {
     <div className="mx-auto max-w-md px-4 py-12">
       <h1 className="mb-6 text-center text-2xl font-extrabold">{t.auth.loginTitle}</h1>
       <Card className="p-5">
-        <LoginForm locale={locale} next={next} mode="customer" s={{ email: t.auth.email, password: t.auth.password, submit: t.auth.submitLogin }} errors={{ ...t.errors, ...t.auth }} />
+        <LoginForm locale={locale} next={next} mode="customer" s={{ email: t.auth.loginIdentifier, password: t.auth.password, submit: t.auth.submitLogin }} errors={{ ...t.errors, ...t.auth }} />
       </Card>
       <p className="mt-4 text-center text-sm text-fg-muted">
         {t.auth.noAccount}{" "}

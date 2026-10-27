@@ -6,7 +6,7 @@ export const faq: Record<Locale, FaqItem[]> = {
   ar: [
     {
       q: "كيف أدفع ثمن طلبي؟",
-      a: "ندعم زين كاش وآسياسيل وماستر كارد. بعد إنشاء الطلب تظهر لك بيانات الدفع، ادفع المبلغ ثم أرسل رقم العملية أو صورة الإيصال من صفحة الطلب.",
+      a: "ندعم زين كاش وآسياسيل وكي كارد (سوبر كي)، والدفع من رصيد المحفظة لأصحاب الحسابات. بعد إنشاء الطلب تظهر لك بيانات الدفع، ادفع المبلغ ثم أرسل رقم العملية أو صورة الإيصال من صفحة الطلب.",
     },
     {
       q: "هل يتم تأكيد الدفع تلقائياً؟",
@@ -40,7 +40,7 @@ export const faq: Record<Locale, FaqItem[]> = {
   en: [
     {
       q: "How do I pay for my order?",
-      a: "We accept Zain Cash, AsiaCell and Mastercard. After you place the order you will see the payment details; pay the amount, then send the transaction number or a receipt photo from the order page.",
+      a: "We accept Zain Cash, AsiaCell and Qi Card (Super Qi), plus wallet balance for account holders. After you place the order you will see the payment details; pay the amount, then send the transaction number or a receipt photo from the order page.",
     },
     {
       q: "Is payment confirmed automatically?",

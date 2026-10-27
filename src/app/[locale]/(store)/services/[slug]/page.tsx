@@ -12,6 +12,8 @@ import { AddToCart, type AddToCartProduct } from "@/components/store/add-to-cart
 import { ProductArt } from "@/components/store/product-art";
 import { Breadcrumbs, ProductGrid } from "@/components/store/product-card";
 import { ProductReviews } from "@/components/store/reviews";
+import { GuideHelp } from "@/components/store/guide-help";
+import { guideForProduct } from "@/lib/i18n/guides";
 import { Stars } from "@/components/ui/stars";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
@@ -119,6 +121,10 @@ export default async function ProductPage({ params }: Props) {
               <Icon name="clock" className="size-5 text-accent" />
               <span className="font-semibold">{t.product.delivery}:</span> <span className="text-fg-muted">{delivery}</span>
             </p>
+          ) : null}
+
+          {guideForProduct(product.slug) ? (
+            <GuideHelp guide={guideForProduct(product.slug)!} locale={locale} summary={t.guides.whereToFind} readMore={t.guides.readMore} />
           ) : null}
 
           <div className="rounded-(--radius-card) border border-line bg-elevated p-4 shadow-soft sm:p-5">

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, or } from "drizzle-orm";
 import { db, type DbOrTx } from "@/lib/db";
 import {
   files,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/domain/tokens";
 import type { CheckoutInput } from "@/lib/validation/schemas";
 import { audit, type Actor } from "./audit";
+import { applyWalletChange } from "./wallet";
 import { quoteCart, type QuotedLine } from "./quote";
 import { loadSettings } from "./settings";
 
@@ -62,13 +63,20 @@ export async function createOrder(
     const settings = await loadSettings(tx);
     if (!settings.ordersEnabled) throw new ServiceError("product_unavailable");
 
-    const method = await tx.query.paymentMethods.findFirst({
-      where: and(eq(paymentMethods.id, input.paymentMethodId), eq(paymentMethods.isEnabled, true)),
-    });
+    const viaWallet = input.paymentMethodId === "wallet";
+    if (viaWallet && !ctx.userId) throw new ServiceError("walletLoginRequired");
+    const method = viaWallet
+      ? WALLET_METHOD
+      : await tx.query.paymentMethods.findFirst({
+          where: and(eq(paymentMethods.id, input.paymentMethodId as number), eq(paymentMethods.isEnabled, true)),
+        });
     if (!method) throw new ServiceError("paymentMethod");
 
     const quote = await quoteCart(input.items, tx);
     if (!quote.valid) throw new ServiceError("cartInvalid", quote.lines.filter((l) => !l.ok));
+    const quotedLines = quote.lines.filter((l): l is Extract<QuotedLine, { ok: true }> => l.ok);
+    const active = await activeDuplicate(tx, quotedLines, input.customerPhone, ctx.userId);
+    if (active) throw new ServiceError("activeOrderExists", { reference: active });
 
     const accessKey = generateAccessKey();
     const now = new Date();
@@ -86,7 +94,8 @@ export async function createOrder(
         customerPhone: input.customerPhone,
         customerEmail: input.customerEmail,
         customerNotes: input.customerNotes,
-        status: "pending_payment",
+        status: viaWallet ? "paid" : "pending_payment",
+        paidAt: viaWallet ? now : null,
         paymentMethodId: method.id,
         paymentMethodCode: method.code,
         paymentMethodNameAr: method.nameAr,
@@ -106,9 +115,8 @@ export async function createOrder(
       return rotateDuplicate(tx, winner);
     }
 
-    const okLines = quote.lines.filter((l): l is Extract<QuotedLine, { ok: true }> => l.ok);
     await tx.insert(orderItems).values(
-      okLines.map((l) => ({
+      quotedLines.map((l) => ({
         orderId: order.id,
         productId: l.productId,
         packageId: l.packageId,
@@ -122,17 +130,62 @@ export async function createOrder(
         inputs: l.inputs,
       })),
     );
-    await tx.insert(payments).values({ orderId: order.id, methodCode: method.code, amount: quote.total, status: "awaiting" });
+    if (viaWallet) {
+      // Debits the balance (throws insufficientBalance and rolls the whole order back).
+      await applyWalletChange(tx, { userId: ctx.userId!, amount: -quote.total, type: "order_payment", orderId: order.id, note: order.reference });
+    }
+    await tx.insert(payments).values({
+      orderId: order.id,
+      methodCode: method.code,
+      amount: quote.total,
+      status: viaWallet ? "confirmed" : "awaiting",
+      ...(viaWallet ? { submittedAt: now, reviewedAt: now } : {}),
+    });
     await tx.insert(orderStatusHistory).values({
       orderId: order.id,
       fromStatus: null,
-      toStatus: "pending_payment",
+      toStatus: viaWallet ? "paid" : "pending_payment",
       actorType: "customer",
       actorId: ctx.userId,
     });
 
     return { orderId: order.id, reference: order.reference, accessKey, duplicate: false };
   });
+}
+
+/** Pseudo payment method for orders paid from the customer's wallet balance. */
+const WALLET_METHOD = { id: null, code: "wallet", nameAr: "رصيد المحفظة", nameEn: "Wallet balance" } as const;
+
+/** Orders still being worked on, where a second identical order would overlap. */
+const IN_PROGRESS: OrderStatus[] = ["payment_review", "paid", "processing"];
+
+/**
+ * Same customer (phone or account), same service, same target details (link,
+ * player ID…) while an earlier order is still in progress → returns its
+ * reference so the customer is asked to wait for it to finish first.
+ */
+async function activeDuplicate(tx: DbOrTx, lines: { productId: number; inputs: { key: string; value: string }[] }[], phone: string, userId: string | null) {
+  const targeted = lines.filter((l) => l.inputs.some((i) => i.value));
+  if (!targeted.length) return null;
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const owner = userId ? or(eq(orders.customerPhone, phone), eq(orders.userId, userId))! : eq(orders.customerPhone, phone);
+  const rows = await tx
+    .select({ reference: orders.reference, productId: orderItems.productId, inputs: orderItems.inputs })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(and(owner, inArray(orders.status, IN_PROGRESS), gt(orders.createdAt, since), inArray(orderItems.productId, targeted.map((l) => l.productId))))
+    .limit(50);
+  const sig = (inputs: { key: string; value: string }[]) =>
+    inputs
+      .filter((i) => i.value)
+      .map((i) => `${i.key}=${i.value.trim().toLowerCase()}`)
+      .sort()
+      .join("&");
+  for (const l of targeted) {
+    const hit = rows.find((r) => r.productId === l.productId && sig(r.inputs) === sig(l.inputs));
+    if (hit) return hit.reference;
+  }
+  return null;
 }
 
 async function rotateDuplicate(
@@ -235,6 +288,10 @@ async function applyTransition(tx: DbOrTx, orderId: string, to: OrderStatus, act
       .update(payments)
       .set({ status: "refunded" })
       .where(and(eq(payments.orderId, orderId), eq(payments.status, "confirmed")));
+    // Wallet payments go straight back to the wallet.
+    if (order.paymentMethodCode === "wallet" && order.userId) {
+      await applyWalletChange(tx, { userId: order.userId, amount: order.total, type: "order_refund", orderId, staffId, note: order.reference });
+    }
   }
 
   await tx.insert(orderStatusHistory).values({
@@ -376,6 +433,13 @@ export async function updateAdminNotes(orderId: string, adminNotes: string, acto
   const updated = await conn.update(orders).set({ adminNotes }).where(eq(orders.id, orderId)).returning({ reference: orders.reference });
   if (!updated[0]) throw new ServiceError("notFound");
   await audit(actor, "order.notes", "order", orderId, { reference: updated[0].reference }, conn);
+}
+
+/** Message shown to the customer on the order page (codes, delivery details). Its content is not written to the audit log. */
+export async function updateDeliveryNote(orderId: string, deliveryNote: string, actor: Actor, conn: DbOrTx = db) {
+  const updated = await conn.update(orders).set({ deliveryNote }).where(eq(orders.id, orderId)).returning({ reference: orders.reference });
+  if (!updated[0]) throw new ServiceError("notFound");
+  await audit(actor, "order.delivery_note", "order", orderId, { reference: updated[0].reference, length: deliveryNote.length }, conn);
 }
 
 /** Latest payment record determines the customer-facing payment status. */

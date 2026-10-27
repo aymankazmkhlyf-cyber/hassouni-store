@@ -11,7 +11,7 @@ export function sessionLifetimeMs(role: User["role"]): number {
   return role === "customer" ? 30 * DAY : 12 * 60 * 60 * 1000;
 }
 
-export type SessionUser = Pick<User, "id" | "email" | "name" | "phone" | "role" | "status">;
+export type SessionUser = Pick<User, "id" | "email" | "name" | "phone" | "role" | "status" | "username" | "walletBalance">;
 
 export async function createSession(user: Pick<User, "id" | "role">, userAgent: string | null, conn: DbOrTx = db) {
   const token = generateSessionToken();
@@ -36,6 +36,8 @@ export async function validateSessionToken(token: string, conn: DbOrTx = db): Pr
       phone: users.phone,
       role: users.role,
       status: users.status,
+      username: users.username,
+      walletBalance: users.walletBalance,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))

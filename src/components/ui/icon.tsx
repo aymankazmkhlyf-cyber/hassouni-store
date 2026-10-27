@@ -7,6 +7,10 @@ const paths = {
   heart: "M12 20s-7-4.4-9-9a4.9 4.9 0 0 1 9-3.6A4.9 4.9 0 0 1 21 11c-2 4.6-9 9-9 9z",
   star: "M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-2.9-5.4 2.9 1.1-6L3.2 9.6l6.1-.8z",
   bell: "M18 16V11a6 6 0 1 0-12 0v5l-2 2h16zM10 21h4",
+  wallet: "M4 7a2 2 0 0 1 2-2h11v4M4 7v11a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H6a2 2 0 0 1-2-2zM16 14h.01",
+  gift: "M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7S10.5 3 8 3a2 2 0 0 0 0 4M12 7s1.5-4 4-4a2 2 0 0 1 0 4",
+  repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
+  book: "M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7M8 11h5",
   smartphone: "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2",
   share: "M12 3v12M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6",
   eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
@@ -89,5 +93,5 @@ export function Icon({ name, className = "size-5", title }: { name: IconName | s
 }
 
 export const CATALOG_ICONS = [
-  "spark", "users", "heart", "eye", "gamepad", "gem", "tv", "music", "palette", "image", "megaphone", "briefcase", "phone", "wand", "tag", "chat",
+  "spark", "users", "heart", "eye", "gamepad", "gem", "tv", "music", "palette", "image", "megaphone", "briefcase", "phone", "wand", "tag", "chat", "gift", "star", "wallet",
 ] as const;

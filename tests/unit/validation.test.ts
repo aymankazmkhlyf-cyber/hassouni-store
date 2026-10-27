@@ -85,7 +85,9 @@ describe("other schemas", () => {
   it("register requires a 10+ char password and valid email", () => {
     expect(registerSchema.safeParse({ name: "Ali", email: "a@b.co", phone: "", password: "short" }).success).toBe(false);
     expect(registerSchema.safeParse({ name: "Ali", email: "nope", phone: "", password: "long-enough-pw" }).success).toBe(false);
-    const ok = registerSchema.parse({ name: "Ali", email: "A@B.CO", phone: "", password: "long-enough-pw" });
+    expect(registerSchema.safeParse({ name: "Ali", email: "a@b.co", phone: "", password: "long-enough-pw" }).success).toBe(false); // username required
+    const ok = registerSchema.parse({ name: "Ali", username: "Ali_92", email: "A@B.CO", phone: "", password: "long-enough-pw" });
+    expect(ok.username).toBe("ali_92");
     expect(ok.email).toBe("a@b.co");
     expect(ok.phone).toBeNull();
   });

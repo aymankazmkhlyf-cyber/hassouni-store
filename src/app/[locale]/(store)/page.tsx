@@ -2,7 +2,8 @@ import Link from "next/link";
 import { resolveLocale, type LocaleParams } from "@/lib/i18n/server";
 import { faq } from "@/lib/i18n/content";
 import { listCategories, listProducts } from "@/lib/services/catalog";
-import { latestReviews } from "@/lib/services/reviews";
+import { latestReviews, storeStats } from "@/lib/services/reviews";
+import { fmt } from "@/lib/i18n/config";
 import { getSettings } from "@/lib/services/settings";
 import { ButtonLink } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -11,15 +12,23 @@ import { ContactLinks } from "@/components/store/contact-links";
 import { FaqList } from "@/components/store/faq-list";
 import { LatestReviews } from "@/components/store/reviews";
 
+/** Below these, the counters would look odd, so they stay hidden until real numbers grow. */
+const COMPLETED_MIN = 10;
+const RATING_MIN = 3;
+
 export default async function HomePage({ params }: LocaleParams) {
   const { locale, t } = await resolveLocale(params);
   const settings = await getSettings();
-  const [categories, featured, offers, reviews] = await Promise.all([
+  const [categories, featured, offers, reviews, stats] = await Promise.all([
     listCategories({ activeOnly: true }),
     listProducts({ featuredOnly: true, pageSize: 8 }),
     settings.showOffers ? listProducts({ offersOnly: true, pageSize: 4 }) : Promise.resolve(null),
     latestReviews(6),
+    storeStats(),
   ]);
+  // Shown only once the numbers are meaningful; they always come from real orders and reviews.
+  const showCompleted = stats.completed >= COMPLETED_MIN;
+  const showRating = stats.rating != null && stats.reviews >= RATING_MIN;
   const heroTitle = (locale === "ar" ? settings.heroTitleAr : settings.heroTitleEn) || t.home.heroTitle;
   const heroSubtitle = (locale === "ar" ? settings.heroSubtitleAr : settings.heroSubtitleEn) || t.home.heroSubtitle;
 
@@ -43,6 +52,21 @@ export default async function HomePage({ params }: LocaleParams) {
                   {t.home.heroSecondary}
                 </Link>
               </div>
+              <ul className="mt-6 flex flex-wrap gap-2 text-sm" data-testid="hero-stats">
+                {showCompleted ? (
+                  <li className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 font-semibold ring-1 ring-white/25">
+                    <Icon name="check" className="size-4" /> {fmt(t.home.statCompleted, { n: stats.completed.toLocaleString("en-US") })}
+                  </li>
+                ) : null}
+                {showRating ? (
+                  <li className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 font-semibold ring-1 ring-white/25">
+                    <Icon name="star" className="size-4" /> {fmt(t.home.statRating, { avg: stats.rating!.toFixed(1), n: stats.reviews })}
+                  </li>
+                ) : null}
+                <li className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 font-semibold ring-1 ring-white/25">
+                  <Icon name="clock" className="size-4" /> {t.home.statSpeed}
+                </li>
+              </ul>
             </div>
             <ul className="hidden grid-cols-2 gap-3 lg:grid" aria-hidden="true">
               {categories.slice(0, 4).map((c) => (

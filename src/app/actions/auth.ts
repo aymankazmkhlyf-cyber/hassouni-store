@@ -7,6 +7,7 @@ import { isLocale, type Locale } from "@/lib/i18n/config";
 import { clientIp } from "@/lib/server/request";
 import { anonymizeCustomer, authenticate, registerCustomer } from "@/lib/services/accounts";
 import { consumeRateLimit, resetRateLimit } from "@/lib/services/rate-limit";
+import { ServiceError } from "@/lib/services/orders";
 import { fieldErrors, loginSchema, registerSchema } from "@/lib/validation/schemas";
 import type { ActionState } from "./types";
 
@@ -53,6 +54,7 @@ export async function registerAction(_p: ActionState, fd: FormData): Promise<Act
   const locale = localeOf(fd);
   const parsed = registerSchema.safeParse({
     name: fd.get("name") ?? "",
+    username: fd.get("username") ?? "",
     email: fd.get("email") ?? "",
     phone: fd.get("phone") ?? "",
     password: fd.get("password") ?? "",
@@ -60,10 +62,12 @@ export async function registerAction(_p: ActionState, fd: FormData): Promise<Act
   if (!parsed.success) return { error: "validation", fieldErrors: fieldErrors(parsed.error) };
   if (!(await consumeRateLimit("register", await clientIp()))) return { error: "rateLimited" };
 
-  const user = await registerCustomer(parsed.data);
-  // Generic message so the form cannot be used to enumerate registered emails.
-  if (!user) return { error: "emailTaken" };
-  await startSession(user);
+  const result = await registerCustomer(parsed.data);
+  if (!result.ok) {
+    // Generic message for emails so the form cannot be used to enumerate registered addresses.
+    return result.reason === "emailTaken" ? { error: "emailTaken" } : { error: "validation", fieldErrors: { username: result.reason } };
+  }
+  await startSession(result.user);
   redirect(safeNext(fd.get("next"), locale, "/account"));
 }
 
@@ -77,7 +81,12 @@ export async function deleteOwnAccountAction(_p: ActionState, fd: FormData): Pro
   if (!user) return { error: "unauthorized" };
   if (isStaffRole(user.role)) return { error: "forbidden" };
   if (fd.get("confirm") !== "DELETE") return { error: "validation" };
-  await anonymizeCustomer(user.id, { id: user.id, email: user.email, role: user.role });
+  try {
+    await anonymizeCustomer(user.id, { id: user.id, email: user.email, role: user.role });
+  } catch (e) {
+    if (e instanceof ServiceError) return { error: e.code };
+    throw e;
+  }
   await endSession();
   redirect(`/${localeOf(fd)}`);
 }

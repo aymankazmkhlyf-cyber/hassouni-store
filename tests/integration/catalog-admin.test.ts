@@ -191,7 +191,7 @@ describe.skipIf(!hasDb)("authentication, sessions and permissions", () => {
 
   it("registration does not reveal or overwrite existing accounts", async () => {
     const u = await makeUser("admin");
-    expect(await registerCustomer({ name: "x", email: u.email, phone: null, password: "another-password" })).toBeNull();
+    expect(await registerCustomer({ name: "x", username: `u${Date.now()}`, email: u.email, phone: null, password: "another-password" })).toEqual({ ok: false, reason: "emailTaken" });
     const row = await db.query.users.findFirst({ where: eq(users.id, u.id) });
     expect(row!.role).toBe("admin");
   });

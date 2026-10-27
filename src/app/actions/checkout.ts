@@ -62,7 +62,10 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
       data: { redirectTo: `/${locale}/orders/${order.reference}?key=${order.accessKey}&new=1` },
     };
   } catch (e) {
-    if (e instanceof ServiceError) return { error: e.code };
+    if (e instanceof ServiceError) {
+      const extra = e.extra as { reference?: string } | undefined;
+      return { error: e.code, data: extra?.reference ? { reference: extra.reference } : undefined };
+    }
     console.error("checkout failed", e instanceof Error ? e.message : "unknown");
     return { error: "generic" };
   }

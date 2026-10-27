@@ -166,6 +166,14 @@ Every admin page **and** every server action checks the permission on the server
 - **Order notifications:** on a pending order the customer can turn on browser push for that order. Staff status changes (payment confirmed or rejected, processing, completed, cancelled, rejected, refunded) are pushed to those devices and, when the order has an email and `RESEND_API_KEY` is set, emailed. VAPID keys are generated on first use and stored in their own `store_settings` row; nothing to configure. Push endpoints are restricted to the real browser push services. iPhone supports push only after installing the app (iOS 16.4+).
 - **Verified reviews:** customers can rate each line of a **completed** order from the order page (same access rule as the order itself). Reviews are published immediately with a "Verified buyer" badge and feed the product rating, product cards and the home page. Staff can reply and can hide abusive reviews with a recorded reason (Admin → Reviews); every action is audited. Links in comments are rejected. Retention removes the customer's chosen display name from reviews of erased orders.
 
+## 7f. Wallet, Super Qi, guides and the round-10 catalog
+
+- **Super Qi / Qi Card:** the former "Mastercard" method (same number, 2025988359) is now "Qi Card (Super Qi)" and shows the owner's transfer QR. Any payment method can carry a QR image (Admin → Payment methods).
+- **Wallet:** customers register with a username (their wallet ID) and can sign in with it or the email. They top up by sending proof of a manual payment; staff approve it in Admin → Wallet, and admins can credit/debit with a recorded reason. Paying from the wallet marks the order paid instantly; refunding such an order returns the money to the wallet. Every change writes one `wallet_transactions` row; balances can never go negative, and an account with a balance cannot be erased.
+- **Ordering:** checkout warns about this customer's open orders, and the server refuses a second order for the same service and the same target (link / player ID) while an earlier one is paid or in progress. Completed orders have "Order again". Staff can write a delivery message (e.g. a gift-card code) that the customer sees on the order page.
+- **Guides:** `/guides` holds illustrated, indexable how-to pages (HowTo/FAQ structured data, in the sitemap). Product and payment pages show the matching guide inline. Illustrations are original SVGs, not copied screenshots.
+- **Catalog v10** (`scripts/content-updates.ts`): gift cards, Mobile Legends, new subscriptions, design, video editing and account management, priced at the official price + 75% rounded up to whole thousands (1,680 IQD/USD). Game top-ups, cards and Telegram show 10–20 minutes after payment confirmation.
+
 ## 8. Security summary
 
 - Server-side validation (Zod) on every action. All SQL is parameterized through Drizzle, and LIKE wildcards in search are escaped.

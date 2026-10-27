@@ -39,6 +39,7 @@ export function Footer({
             { href: l("/services"), label: t.nav.services },
             { href: l("/custom-request"), label: t.nav.customRequest },
             { href: l("/track"), label: t.nav.track },
+            { href: l("/guides"), label: t.guides.title },
             { href: l("/faq"), label: t.nav.faq },
             { href: l("/contact"), label: t.nav.contact },
           ]}

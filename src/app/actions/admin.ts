@@ -15,8 +15,9 @@ import { audit } from "@/lib/services/audit";
 import { deleteCategory, deleteProduct, moveCategory, saveCategory, saveProduct, updatePaymentMethod } from "@/lib/services/admin-catalog";
 import { updateCustomRequest } from "@/lib/services/custom-requests";
 import { storeFile } from "@/lib/services/files";
-import { reviewPayment, ServiceError, transitionOrder, updateAdminNotes } from "@/lib/services/orders";
+import { reviewPayment, ServiceError, transitionOrder, updateAdminNotes, updateDeliveryNote } from "@/lib/services/orders";
 import { replyToReview, setReviewStatus } from "@/lib/services/reviews";
+import { adminAdjustWallet, reviewTopup } from "@/lib/services/wallet";
 import { eventForStatus, notifyCustomer } from "@/lib/services/order-notify";
 import { siteUrl } from "@/lib/server/request";
 import { loadSettings, saveSettings, storeSettingsSchema } from "@/lib/services/settings";
@@ -97,6 +98,39 @@ export async function saveAdminNotesAction(_p: ActionState, fd: FormData) {
   });
 }
 
+/* -------------------------------- Wallet ------------------------------- */
+
+const topupReviewSchema = z.object({ topupId: z.uuid(), decision: z.enum(["approve", "reject"]), note: z.string().trim().max(300).default("") });
+const walletAdjustSchema = z.object({
+  userId: z.uuid(),
+  direction: z.enum(["credit", "debit"]),
+  amount: z.coerce.number().int().min(250).max(10_000_000),
+  note: z.string().trim().max(300).default(""),
+});
+
+export async function reviewTopupAction(_p: ActionState, fd: FormData) {
+  return guarded("payments:review", async (actor) => {
+    const parsed = topupReviewSchema.safeParse(entries(fd));
+    if (!parsed.success) return { error: "validation" };
+    await reviewTopup(parsed.data.topupId, parsed.data.decision, parsed.data.note, actor);
+    revalidatePath("/[locale]/admin", "layout");
+    revalidatePath("/[locale]/account", "layout");
+    return { ok: true, message: "saved" };
+  });
+}
+
+export async function adjustWalletAction(_p: ActionState, fd: FormData) {
+  return guarded("wallet:adjust", async (actor) => {
+    const parsed = walletAdjustSchema.safeParse(entries(fd));
+    if (!parsed.success) return { error: "validation" };
+    const { userId, direction, amount, note } = parsed.data;
+    const balance = await adminAdjustWallet(userId, direction === "credit" ? amount : -amount, note, actor);
+    revalidatePath("/[locale]/admin/wallet", "page");
+    revalidatePath("/[locale]/account", "layout");
+    return { ok: true, message: "saved", data: { balance } };
+  });
+}
+
 /* ------------------------------- Reviews ------------------------------- */
 
 export async function moderateReviewAction(_p: ActionState, fd: FormData) {
@@ -119,6 +153,17 @@ export async function replyReviewAction(_p: ActionState, fd: FormData) {
     revalidatePath("/[locale]/admin/reviews", "page");
     revalidatePath("/[locale]/services/[slug]", "page");
     revalidatePath("/[locale]", "page");
+    return { ok: true, message: "saved" };
+  });
+}
+
+export async function saveDeliveryNoteAction(_p: ActionState, fd: FormData) {
+  return guarded("orders:update", async (actor) => {
+    const parsed = z.object({ orderId: z.uuid(), deliveryNote: z.string().trim().max(3000).default("") }).safeParse(entries(fd));
+    if (!parsed.success) return { error: "validation" };
+    await updateDeliveryNote(parsed.data.orderId, parsed.data.deliveryNote, actor);
+    revalidatePath("/[locale]/admin/orders/[id]", "page");
+    revalidatePath("/[locale]/orders/[reference]", "page");
     return { ok: true, message: "saved" };
   });
 }
@@ -206,7 +251,14 @@ export async function savePaymentMethodAction(_p: ActionState, fd: FormData) {
     const id = Number(fd.get("id"));
     const parsed = paymentMethodSchema.safeParse(entries(fd));
     if (!parsed.success || !Number.isSafeInteger(id)) return { error: "validation" };
-    await updatePaymentMethod(id, parsed.data, actor);
+    let qrFileId: string | null = null;
+    const file = fd.get("qr");
+    if (file instanceof File && file.size > 0) {
+      const checked = await checkUpload(file, ["image/jpeg", "image/png", "image/webp"]);
+      if (!checked.ok) return { error: checked.error };
+      qrFileId = await storeFile("payment_qr", checked.mime, checked.bytes, actor.id);
+    }
+    await updatePaymentMethod(id, parsed.data, actor, { fileId: qrFileId, remove: fd.get("removeQr") === "on" });
     revalidatePath("/[locale]", "layout");
     return { ok: true, message: "saved" };
   });

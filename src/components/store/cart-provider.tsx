@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { addLine, parseStoredCart, removeLine, setQuantity, type CartLine } from "@/lib/domain/cart";
 
 const STORAGE_KEY = "hds_cart_v1";
@@ -37,8 +37,14 @@ function write(lines: CartLine[]) {
  * convenience: the server re-validates and re-prices every line.
  */
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [lines, setLines] = useState<CartLine[]>([]);
+  const [lines, setLinesState] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
+  // Latest cart, so several add() calls in one event (e.g. "order again") build on each other.
+  const latest = useRef<CartLine[]>([]);
+  const setLines = useCallback((next: CartLine[]) => {
+    latest.current = next;
+    setLinesState(next);
+  }, []);
 
   useEffect(() => {
     setLines(read());
@@ -51,21 +57,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const commit = useCallback((next: (prev: CartLine[]) => CartLine[]) => {
-    setLines((prev) => {
-      const value = next(prev);
+  const commit = useCallback(
+    (next: (prev: CartLine[]) => CartLine[]) => {
+      const value = next(latest.current);
       write(value);
-      return value;
-    });
-  }, []);
+      setLines(value);
+    },
+    [setLines],
+  );
 
   const value = useMemo<CartContextValue>(
     () => ({
       lines,
       ready,
       add: (line) => {
-        const next = addLine(lines, line);
-        if (next === lines) return false;
+        const prev = latest.current;
+        const next = addLine(prev, line);
+        if (next === prev) return false;
         write(next);
         setLines(next);
         return true;
@@ -74,7 +82,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       remove: (key) => commit((prev) => removeLine(prev, key)),
       clear: () => commit(() => []),
     }),
-    [lines, ready, commit],
+    [lines, ready, commit, setLines],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

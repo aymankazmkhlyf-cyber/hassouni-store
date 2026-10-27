@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { inArray } from "drizzle-orm";
-import { changeOrderStatusAction, reviewPaymentAction, saveAdminNotesAction } from "@/app/actions/admin";
+import { changeOrderStatusAction, reviewPaymentAction, saveAdminNotesAction, saveDeliveryNoteAction } from "@/app/actions/admin";
 import { requireStaffPage } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
@@ -197,6 +197,17 @@ export default async function AdminOrderDetail({ params }: Props) {
                   </ActionForm>
                 )}
               </div>
+            </Card>
+          ) : null}
+
+          {canUpdate ? (
+            <Card>
+              <CardHeader title={d.deliveryNote} description={d.deliveryNoteHint} />
+              <ActionForm action={saveDeliveryNoteAction} messages={messages} className="space-y-3 px-5 py-4">
+                <input type="hidden" name="orderId" value={order.id} />
+                <Textarea name="deliveryNote" defaultValue={order.deliveryNote} maxLength={3000} rows={4} aria-label={d.deliveryNote} dir="auto" />
+                <SubmitButton size="sm">{t.common.save}</SubmitButton>
+              </ActionForm>
             </Card>
           ) : null}
 

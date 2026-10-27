@@ -51,6 +51,11 @@ export default async function AdminCustomer({ params }: Props) {
         <div className="space-y-4">
           <Card className="space-y-2 p-5 text-sm">
             <p><span className="text-fg-subtle">{t.checkout.phone}: </span><span className="ltr-nums" dir="ltr">{user.phone ?? "—"}</span></p>
+            <p><span className="text-fg-subtle">{t.wallet.walletId}: </span><span className="ltr-nums" dir="ltr">{user.username ? `@${user.username}` : "—"}</span></p>
+            <p>
+              <span className="text-fg-subtle">{t.wallet.balance}: </span>
+              <a href={`/${locale}/admin/wallet?find=${encodeURIComponent(user.username ?? user.email)}`} className="ltr-nums font-bold text-brand hover:underline" dir="ltr">{formatIQD(user.walletBalance, locale)}</a>
+            </p>
             <p><span className="text-fg-subtle">{c.joined}: </span><span className="ltr-nums">{formatDate(user.createdAt, locale)}</span></p>
           </Card>
           {canWrite ? (

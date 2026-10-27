@@ -26,7 +26,7 @@ export default async function AccountPage({ params }: LocaleParams) {
   const isCustomer = user.role === "customer";
   return (
     <>
-      <PageHeader title={t.account.title} subtitle={`${user.name} · ${user.email}`} />
+      <PageHeader title={t.account.title} subtitle={`${user.name} · ${user.email}${user.username ? ` · @${user.username}` : ""}`} />
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
         <div className="flex flex-wrap gap-2">
           {!isCustomer ? <ButtonLink href={`/${locale}/admin`} variant="secondary"><Icon name="grid" className="size-4" /> {t.admin.panel}</ButtonLink> : null}
@@ -35,6 +35,26 @@ export default async function AccountPage({ params }: LocaleParams) {
             <Button type="submit" variant="outline"><Icon name="logout" className="size-4" /> {t.nav.logout}</Button>
           </form>
         </div>
+
+        {isCustomer ? (
+          <Link
+            href={`/${locale}/account/wallet`}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-(--radius-card) bg-[linear-gradient(135deg,var(--hero-from),var(--hero-to))] p-5 text-white shadow-lift"
+            data-testid="account-wallet"
+          >
+            <span className="flex items-center gap-3">
+              <Icon name="wallet" className="size-7" />
+              <span>
+                <span className="block text-sm text-white/80">{t.wallet.balance}</span>
+                <span className="ltr-nums block text-2xl font-black" dir="ltr">{formatIQD(user.walletBalance, locale)}</span>
+              </span>
+            </span>
+            <span className="text-end text-sm">
+              {user.username ? <span className="ltr-nums block font-bold" dir="ltr">@{user.username}</span> : null}
+              <span className="font-semibold underline">{t.wallet.openWallet}</span>
+            </span>
+          </Link>
+        ) : null}
 
         <Card>
           <CardHeader title={t.account.orders} />
