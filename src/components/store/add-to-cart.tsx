@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { lineKey } from "@/lib/domain/cart";
 import { formatIQD } from "@/lib/domain/money";
 import { priceLine, quantityBounds, type PriceErrorCode } from "@/lib/domain/pricing";
 import { validateFieldValues, type FieldDef } from "@/lib/domain/fields";
@@ -10,6 +11,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field, Input, Select, Textarea, aria } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icon";
+import { CartAddedPopup, type AddedItem, type CartAddedStrings } from "./cart-added-popup";
 import { useCart } from "./cart-provider";
 
 export type AddToCartProduct = {
@@ -26,10 +28,8 @@ export type AddToCartProduct = {
   fields: (FieldDef & { helpAr: string; helpEn: string })[];
 };
 
-export type AddToCartStrings = {
+export type AddToCartStrings = CartAddedStrings & {
   addToCart: string;
-  added: string;
-  goToCart: string;
   quantity: string;
   choosePackage: string;
   minMax: string;
@@ -51,7 +51,10 @@ export function AddToCart({ product, locale, s }: { product: AddToCartProduct; l
   const [quantity, setQuantity] = useState(bounds.min);
   const [values, setValues] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<"idle" | "added" | "full">("idle");
+  const [status, setStatus] = useState<"idle" | "full">("idle");
+  const [added, setAdded] = useState<(AddedItem & { key: string; previousQuantity: number | null }) | null>(null);
+  const addCount = useRef(0);
+  const closePopup = useCallback(() => setAdded(null), []);
 
   const label = (o: { labelAr: string; labelEn: string }) => (locale === "ar" ? o.labelAr : o.labelEn);
 
@@ -85,19 +88,49 @@ export function AddToCart({ product, locale, s }: { product: AddToCartProduct; l
     setErrors({});
     if (!priced.ok) return;
     const pkg = product.packages.find((p) => p.id === packageId);
+    const linePackageId = product.pricingMode === "package" ? packageId : null;
+    const inputs = Object.fromEntries(res.values.map((v) => [v.key, v.value]));
+    const key = lineKey(product.id, linePackageId, inputs);
+    const previousQuantity = cart.lines.find((l) => l.key === key)?.quantity ?? null;
     const ok = cart.add({
       productId: product.id,
       slug: product.slug,
-      packageId: product.pricingMode === "package" ? packageId : null,
+      packageId: linePackageId,
       quantity,
-      inputs: Object.fromEntries(res.values.map((v) => [v.key, v.value])),
+      inputs,
       nameAr: product.nameAr,
       nameEn: product.nameEn,
       packageLabelAr: pkg?.labelAr ?? null,
       packageLabelEn: pkg?.labelEn ?? null,
       unitPriceHint: priced.unitPrice,
     });
-    setStatus(ok ? "added" : "full");
+    setStatus(ok ? "idle" : "full");
+    if (!ok) return;
+    const details = res.values
+      .filter((v) => v.value)
+      .slice(0, 2)
+      .map((v) => {
+        const def = product.fields.find((f) => f.key === v.key);
+        const option = def?.options.find((o) => o.value === v.value);
+        return { label: def ? label(def) : v.key, value: option ? label(option) : v.value };
+      });
+    setAdded({
+      id: ++addCount.current,
+      key,
+      previousQuantity,
+      name: locale === "ar" ? product.nameAr : product.nameEn,
+      packageLabel: pkg ? label(pkg) : null,
+      quantity,
+      inCartQuantity: (previousQuantity ?? 0) + quantity,
+      lineTotal: priced.lineTotal,
+      details,
+    });
+  }
+
+  function undo() {
+    if (!added) return;
+    if (added.previousQuantity == null) cart.remove(added.key);
+    else cart.update(added.key, added.previousQuantity);
   }
 
   return (
@@ -211,15 +244,15 @@ export function AddToCart({ product, locale, s }: { product: AddToCartProduct; l
         </Button>
       </div>
 
-      {status === "added" ? (
-        <Alert tone="success" title={s.added}>
+      {status === "full" ? (
+        <Alert tone="warning" title={s.limitReached}>
           <Link href={`/${locale}/cart`} className={buttonClass("primary", "sm", "mt-2")}>
             {s.goToCart}
           </Link>
         </Alert>
-      ) : status === "full" ? (
-        <Alert tone="warning" title={s.limitReached} />
       ) : null}
+
+      {added ? <CartAddedPopup key={added.id} item={added} locale={locale} s={s} onUndo={undo} onClose={closePopup} /> : null}
     </form>
   );
 }

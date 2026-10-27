@@ -76,8 +76,23 @@ try {
     await page.getByText("الحقل «رقم اللاعب (Player ID)» مطلوب.").waitFor();
     await page.getByLabel("رقم اللاعب (Player ID)").fill("5123456789");
     await page.getByRole("button", { name: "أضف إلى السلة" }).click();
-    await page.getByText("تمت الإضافة إلى السلة").waitFor();
+    const popup = page.getByTestId("cart-added-popup");
+    await popup.getByText("تمت الإضافة إلى السلة").waitFor();
+    await popup.getByText("5123456789").waitFor();
+    await page.getByRole("link", { name: "السلة (1)" }).waitFor();
     await shot(page, "03-product-added");
+  });
+
+  await step("added-to-cart popup can undo a mistaken add", async () => {
+    const popup = page.getByTestId("cart-added-popup");
+    await popup.getByRole("button", { name: "تراجع عن الإضافة" }).click();
+    await popup.getByText("تم التراجع وأُزيلت الإضافة من السلة.").waitFor();
+    await page.getByRole("link", { name: "السلة", exact: true }).waitFor();
+    await page.getByRole("button", { name: "أضف إلى السلة" }).click();
+    await popup.getByText("تمت الإضافة إلى السلة").waitFor();
+    await popup.getByRole("button", { name: "متابعة التسوق" }).click();
+    await popup.waitFor({ state: "detached" });
+    await page.getByRole("link", { name: "السلة (1)" }).waitFor();
   });
 
   await step("cart shows server-calculated total and survives reload", async () => {

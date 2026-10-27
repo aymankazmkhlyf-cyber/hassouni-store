@@ -4,21 +4,31 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LOCALE_COOKIE, otherLocale, switchLocalePath, type Locale } from "@/lib/i18n/config";
+import { cn } from "@/components/ui/cn";
 import { Icon } from "@/components/ui/icon";
 import { useCart } from "./cart-provider";
 
 export function CartButton({ locale, label }: { locale: Locale; label: string }) {
   const { lines, ready } = useCart();
   const count = ready ? lines.length : 0;
+  // Bump the icon whenever something is added (including more of an existing line).
+  const units = lines.reduce((sum, l) => sum + l.quantity, 0);
+  const lastUnits = useRef<number | null>(null);
+  const [bump, setBump] = useState(0);
+  useEffect(() => {
+    if (!ready) return;
+    if (lastUnits.current != null && units > lastUnits.current) setBump((b) => b + 1);
+    lastUnits.current = units;
+  }, [ready, units]);
   return (
     <Link
       href={`/${locale}/cart`}
       className="relative grid size-10 place-items-center rounded-xl text-fg hover:bg-muted"
       aria-label={count ? `${label} (${count})` : label}
     >
-      <Icon name="cart" className="size-5.5" />
+      <Icon key={`i${bump}`} name="cart" className={cn("size-5.5", bump && "animate-bump text-brand")} />
       {count > 0 ? (
-        <span className="absolute -top-0.5 -end-0.5 grid min-w-5 place-items-center rounded-full bg-brand px-1 text-[0.68rem] font-bold text-brand-fg" aria-hidden="true">
+        <span key={`b${bump}`} className={cn("absolute -top-0.5 -end-0.5 grid min-w-5 place-items-center rounded-full bg-brand px-1 text-[0.68rem] font-bold text-brand-fg", bump && "animate-bump")} aria-hidden="true">
           {count}
         </span>
       ) : null}
