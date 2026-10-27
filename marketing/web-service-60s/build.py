@@ -253,41 +253,49 @@ FEATURES = [
 
 
 def scene_features():
+    """Tiles appear exactly when the voice names each feature (voice_timing.json from voice.py)."""
+    import json
+    import os
+    timing = json.load(open("voice_timing.json")) if os.path.exists("voice_timing.json") else None
+    times = timing["tiles"] + [round(timing["tiles"][-1] + 0.45, 2)] if timing else [round(30.35 + i * 0.5, 2) for i in range(8)]
+    P = timing["precision"] - 0.12 if timing else 35.6  # precision moment
+    OUTT = round(P - 0.05, 2)
     s, e = 29.55, 40.0
     tiles = "".join(
-        A("pop", round(30.35 + i * 0.5, 2), 0.42, sfx="tick", cls="tile glass", o=35.25, out="shrink", od=0.35,
-          inner=icon(ic, c, 1.9, draw=f"{round(30.45 + i * 0.5, 2)},0.6") + f"<b>{t}</b><span>{sub}</span>")
-        for i, (ic, c, t, sub) in enumerate(FEATURES)
+        A("pop", t, 0.4, sfx="tick", cls="tile glass", o=OUTT, out="shrink", od=0.3,
+          inner=icon(ic, c, 1.9, draw=f"{round(t + 0.08, 2)},0.5") + f"<b>{title}</b><span>{sub}</span>")
+        for t, (ic, c, title, sub) in zip(times, FEATURES)
     )
+    r = lambda x: round(P + x, 2)
     return f"""
 <section class="scene" data-s="{s}" data-e="{e}" data-push="0.03">
   {mark(29.6, sfx="impact", shake=0.7, flash=True)}
   <div class="abs" style="top:250px">
-    {A("slam", 29.6, 0.45, cls="h2", inner="كل اللي يحتاجه", o=35.25, out="up", od=0.3)}
-    {A("slam", 29.85, 0.45, cls="h2 grad glow", inner="موقعك", o=35.25, out="up", od=0.3)}
+    {A("slam", 29.6, 0.45, cls="h2", inner="كل اللي يحتاجه", o=OUTT, out="up", od=0.3)}
+    {A("slam", 29.85, 0.45, cls="h2 grad glow", inner="موقعك", o=OUTT, out="up", od=0.3)}
   </div>
   <div class="tiles">{tiles}</div>
-  {mark(35.25, sfx="swish")}
+  {mark(OUTT, sfx="swish")}
   <!-- precision -->
-  {A("slam", 35.6, 0.45, cls="abs h2", style="top:300px", inner="دقة <span class='gold'>بكل تفصيلة</span>")}
-  <div data-a="tilt" data-t="35.85" data-d="0.6" data-sfx="swoosh" class="glass" style="position:absolute;left:120px;right:120px;top:640px;height:820px;padding:50px">
+  {A("slam", r(0.0), 0.4, cls="abs h2", style="top:300px", inner="دقة <span class='gold'>بكل تفصيلة</span>")}
+  <div data-a="tilt" data-t="{r(0.08)}" data-d="0.5" data-sfx="swoosh" class="glass" style="position:absolute;left:120px;right:120px;top:640px;height:820px;padding:50px">
     <div style="height:110px;border-radius:24px;background:linear-gradient(90deg,#2a2b5e,#1d1e45)"></div>
     <div style="height:300px;border-radius:30px;background:linear-gradient(135deg,#6d4dff,#22b8d6);margin-top:40px;position:relative">
-      <div class="measure" style="inset:-14px" data-a="fade" data-t="36.6" data-d="0.3"></div>
-      <div class="mtag" style="top:-56px;right:20px" data-a="pop" data-t="36.8" data-d="0.3" data-sfx="blip">760 × 300</div>
+      <div class="measure" style="inset:-14px" data-a="fade" data-t="{r(0.4)}" data-d="0.25"></div>
+      <div class="mtag" style="top:-56px;right:20px" data-a="pop" data-t="{r(0.55)}" data-d="0.3" data-sfx="blip">760 × 300</div>
     </div>
     <div style="display:flex;gap:40px;margin-top:40px;position:relative">
       <div style="flex:1;height:200px;border-radius:24px;background:#1f2050"></div>
       <div style="flex:1;height:200px;border-radius:24px;background:#1f2050"></div>
-      <div class="mtag" style="top:80px;left:50%;transform:translateX(-50%)" data-a="pop" data-t="37.2" data-d="0.3" data-sfx="blip">40px</div>
+      <div class="mtag" style="top:80px;left:50%;transform:translateX(-50%)" data-a="pop" data-t="{r(0.85)}" data-d="0.3" data-sfx="blip">40px</div>
     </div>
     <svg viewBox="0 0 840 820" style="position:absolute;inset:0;width:100%;height:100%" fill="none" stroke="#ffcc4d" stroke-width="3" stroke-dasharray="10 8">
-      <path d="M50 30 V790" data-draw="36.3,0.8" data-len="760"/><path d="M790 30 V790" data-draw="36.4,0.8" data-len="760"/>
-      <path d="M20 160 H820" data-draw="36.5,0.8" data-len="800"/><path d="M20 500 H820" data-draw="36.6,0.8" data-len="800"/>
+      <path d="M50 30 V790" data-draw="{r(0.2)},0.5" data-len="760"/><path d="M790 30 V790" data-draw="{r(0.25)},0.5" data-len="760"/>
+      <path d="M20 160 H820" data-draw="{r(0.3)},0.5" data-len="800"/><path d="M20 500 H820" data-draw="{r(0.35)},0.5" data-len="800"/>
     </svg>
-    <div style="position:absolute;left:0;right:0;height:6px;top:0;background:linear-gradient(90deg,transparent,#6ee7ff,transparent);box-shadow:0 0 30px #6ee7ff" data-scroll="36.2,2.6,-800"></div>
+    <div style="position:absolute;left:0;right:0;height:6px;top:0;background:linear-gradient(90deg,transparent,#6ee7ff,transparent);box-shadow:0 0 30px #6ee7ff" data-scroll="{r(0.15)},1.4,-800"></div>
   </div>
-  {A("up", 38.0, 0.45, cls="abs p", style="top:1560px", inner="كل بكسل بمكانه — على التلفون والكمبيوتر")}
+  {A("up", r(0.7), 0.35, cls="abs p", style="top:1560px", inner="كل بكسل بمكانه — على التلفون والكمبيوتر")}
   {mark(39.65, sfx="tapestop")}
 </section>"""
 
