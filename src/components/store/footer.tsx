@@ -4,6 +4,7 @@ import type { Dictionary } from "@/lib/i18n";
 import type { StoreSettings } from "@/lib/services/settings";
 import { Logo } from "@/components/ui/logo";
 import { ContactLinks } from "./contact-links";
+import { InstallAppButton } from "./pwa";
 
 export function Footer({
   locale,
@@ -26,6 +27,10 @@ export function Footer({
           <Logo locale={locale} name={name} logoUrl={settings.logoFileId ? `/api/files/${settings.logoFileId}` : null} />
           <p className="text-sm text-fg-muted">{t.footer.about}</p>
           <ContactLinks settings={settings} t={t} variant="icons" />
+          <InstallAppButton
+            s={t.pwa}
+            className="inline-flex items-center gap-2 rounded-xl border border-brand/40 bg-brand-soft px-3.5 py-2 text-sm font-bold text-brand-soft-fg hover:bg-brand hover:text-brand-fg"
+          />
         </div>
         <FooterCol title={t.nav.categories} links={categories.map((c) => ({ href: l(`/category/${c.slug}`), label: locale === "ar" ? c.nameAr : c.nameEn }))} />
         <FooterCol

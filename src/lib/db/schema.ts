@@ -74,6 +74,8 @@ export const authCodePurpose = pgEnum("auth_code_purpose", ["password_reset", "p
 export const supportSender = pgEnum("support_sender", ["customer", "staff", "bot"]);
 export const supportStatus = pgEnum("support_status", ["open", "closed"]);
 
+export const reviewStatus = pgEnum("review_status", ["published", "hidden"]);
+
 /* ------------------------------------------------------------------ */
 /* Users & sessions                                                    */
 /* ------------------------------------------------------------------ */
@@ -516,6 +518,58 @@ export const supportMessages = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
+/* Reviews & order notifications                                       */
+/* ------------------------------------------------------------------ */
+
+/** One review per purchased line, only after the order was completed ("verified buyer"). */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: serial("id").primaryKey(),
+    orderItemId: integer("order_item_id")
+      .notNull()
+      .references(() => orderItems.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    productId: integer("product_id").references(() => products.id, { onDelete: "set null" }),
+    rating: integer("rating").notNull(),
+    comment: text("comment").notNull().default(""),
+    displayName: text("display_name").notNull(),
+    status: reviewStatus("status").notNull().default("published"),
+    hiddenReason: text("hidden_reason"),
+    staffReply: text("staff_reply"),
+    staffReplyAt: timestamp("staff_reply_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("reviews_item_uq").on(t.orderItemId),
+    index("reviews_product_idx").on(t.productId, t.status, t.createdAt),
+    index("reviews_created_idx").on(t.createdAt),
+    check("reviews_rating_ck", sql`${t.rating} BETWEEN 1 AND 5`),
+    check("reviews_comment_ck", sql`char_length(${t.comment}) <= 1000`),
+  ],
+);
+
+/** Browser push subscriptions a customer opted into for a specific order. */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: serial("id").primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    locale: text("locale").notNull().default("ar"),
+    failures: integer("failures").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("push_subscriptions_order_endpoint_uq").on(t.orderId, t.endpoint), index("push_subscriptions_order_idx").on(t.orderId)],
+);
+
+/* ------------------------------------------------------------------ */
 /* Relations                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -541,11 +595,17 @@ export const productFieldsRelations = relations(productFields, ({ one }) => ({
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   user: one(users, { fields: [orders.userId], references: [users.id] }),
   items: many(orderItems),
+  reviews: many(reviews),
   payments: many(payments),
   history: many(orderStatusHistory),
 }));
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
+}));
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  order: one(orders, { fields: [reviews.orderId], references: [orders.id] }),
+  item: one(orderItems, { fields: [reviews.orderItemId], references: [orderItems.id] }),
+  product: one(products, { fields: [reviews.productId], references: [products.id] }),
 }));
 export const paymentsRelations = relations(payments, ({ one }) => ({
   order: one(orders, { fields: [payments.orderId], references: [orders.id] }),
@@ -575,3 +635,5 @@ export type CustomRequest = typeof customRequests.$inferSelect;
 export type RequestStatus = (typeof requestStatus.enumValues)[number];
 export type SupportThread = typeof supportThreads.$inferSelect;
 export type SupportMessage = typeof supportMessages.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
+export type ReviewStatus = (typeof reviewStatus.enumValues)[number];

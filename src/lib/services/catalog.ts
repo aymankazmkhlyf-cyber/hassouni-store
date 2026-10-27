@@ -25,6 +25,10 @@ const hasOfferSql = sql<boolean>`(
              AND pp.compare_at_price IS NOT NULL AND pp.compare_at_price > pp.price)
 )`;
 
+/** Published verified-buyer ratings, shown on cards only when at least one exists. */
+const ratingAvgSql = sql<number | null>`(SELECT round(avg(r.rating)::numeric, 1) FROM reviews r WHERE r.product_id = "products"."id" AND r.status = 'published')`;
+const ratingCountSql = sql<number>`(SELECT count(*) FROM reviews r WHERE r.product_id = "products"."id" AND r.status = 'published')`;
+
 export type ProductCard = {
   id: number;
   slug: string;
@@ -43,6 +47,8 @@ export type ProductCard = {
   categorySlug: string;
   categoryNameAr: string;
   categoryNameEn: string;
+  ratingAvg: number | null;
+  ratingCount: number;
 };
 
 const cardColumns = {
@@ -63,6 +69,8 @@ const cardColumns = {
   categorySlug: categories.slug,
   categoryNameAr: categories.nameAr,
   categoryNameEn: categories.nameEn,
+  ratingAvg: ratingAvgSql,
+  ratingCount: ratingCountSql,
 };
 
 export function escapeLike(q: string): string {
@@ -159,7 +167,12 @@ export async function listProducts(opts: ListProductsOptions = {}, conn: DbOrTx 
 
   const total = totalRow[0]?.n ?? 0;
   return {
-    items: items.map((i) => ({ ...i, startingPrice: i.startingPrice == null ? null : Number(i.startingPrice) })) as ProductCard[],
+    items: items.map((i) => ({
+      ...i,
+      startingPrice: i.startingPrice == null ? null : Number(i.startingPrice),
+      ratingAvg: i.ratingAvg == null ? null : Number(i.ratingAvg),
+      ratingCount: Number(i.ratingCount),
+    })) as ProductCard[],
     total,
     page,
     pageSize,

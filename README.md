@@ -160,6 +160,12 @@ Every admin page **and** every server action checks the permission on the server
 - SEO and sharing: dynamic `sitemap.xml` (all active categories and products in both languages), `robots.txt` with sitemap, Open Graph preview image, and a web app manifest with icons so customers can "Add to Home Screen".
 - The base URL comes from `APP_URL` when set, otherwise from the request host, so links stay correct after renaming the Netlify site or adding a custom domain.
 
+## 7e. Installable app, order notifications and verified reviews
+
+- **App (PWA):** `public/sw.js` caches only immutable build assets and shows `public/offline.html` without a connection; pages, prices and orders always come from the server. Customers get an install banner (the browser's own prompt on Android/desktop, Add-to-Home-Screen steps on iPhone) and a "Get the app" button in the footer. The manifest has shortcuts to services, cart and tracking.
+- **Order notifications:** on a pending order the customer can turn on browser push for that order. Staff status changes (payment confirmed or rejected, processing, completed, cancelled, rejected, refunded) are pushed to those devices and, when the order has an email and `RESEND_API_KEY` is set, emailed. VAPID keys are generated on first use and stored in their own `store_settings` row; nothing to configure. Push endpoints are restricted to the real browser push services. iPhone supports push only after installing the app (iOS 16.4+).
+- **Verified reviews:** customers can rate each line of a **completed** order from the order page (same access rule as the order itself). Reviews are published immediately with a "Verified buyer" badge and feed the product rating, product cards and the home page. Staff can reply and can hide abusive reviews with a recorded reason (Admin → Reviews); every action is audited. Links in comments are rejected. Retention removes the customer's chosen display name from reviews of erased orders.
+
 ## 8. Security summary
 
 - Server-side validation (Zod) on every action. All SQL is parameterized through Drizzle, and LIKE wildcards in search are escaped.

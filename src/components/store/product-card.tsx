@@ -5,6 +5,8 @@ import type { ProductCard as ProductCardData } from "@/lib/services/catalog";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { Price } from "@/components/ui/price";
+import { Stars } from "@/components/ui/stars";
+import { fmt } from "@/lib/i18n/config";
 import { ProductArt } from "./product-art";
 
 export function ProductCard({ p, locale, t }: { p: ProductCardData; locale: Locale; t: Dictionary }) {
@@ -33,6 +35,13 @@ export function ProductCard({ p, locale, t }: { p: ProductCardData; locale: Loca
           </Link>
         </h3>
         {summary ? <p className="line-clamp-2 text-sm text-fg-muted">{summary}</p> : null}
+        {p.ratingCount > 0 && p.ratingAvg != null ? (
+          <p className="flex items-center gap-1.5 text-xs">
+            <Stars value={p.ratingAvg} label={fmt(t.reviews.outOf, { avg: p.ratingAvg.toFixed(1) })} className="text-sm" />
+            <span className="ltr-nums font-bold">{p.ratingAvg.toFixed(1)}</span>
+            <span className="ltr-nums text-fg-subtle">({p.ratingCount})</span>
+          </p>
+        ) : null}
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           {p.startingPrice != null ? (
             <p className="text-sm">

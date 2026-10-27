@@ -74,6 +74,29 @@ export const paymentProofSchema = z.object({
   customerReference: trimmed(100).default(""),
 });
 
+const LINK_RE = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|me|iq|ly|gg)\b)/i;
+
+export const reviewSchema = z.object({
+  orderItemId: z.coerce.number().int().positive(),
+  rating: z.coerce.number().int().min(1, "ratingRequired").max(5, "ratingRequired"),
+  comment: trimmed(1000)
+    .default("")
+    .refine((v) => !LINK_RE.test(v), "reviewNoLinks"),
+  displayName: z.string().trim().min(2, "displayNameRequired").max(40, "tooLong"),
+});
+export type ReviewInput = z.infer<typeof reviewSchema>;
+
+export const reviewModerationSchema = z.object({
+  reviewId: z.coerce.number().int().positive(),
+  status: z.enum(["published", "hidden"]),
+  reason: trimmed(300).default(""),
+});
+
+export const reviewReplySchema = z.object({
+  reviewId: z.coerce.number().int().positive(),
+  reply: trimmed(1000).default(""),
+});
+
 export const loginSchema = z.object({
   email: requiredEmail,
   password: z.string().min(1).max(200),

@@ -11,6 +11,7 @@ import { customerCanSubmitPayment } from "@/lib/domain/order-status";
 import { formatDateTime, getDictionary, isLocale } from "@/lib/i18n";
 import { sp } from "@/lib/i18n/server";
 import { getOrderByAccessKey, getOrderForUser, latestPayment } from "@/lib/services/orders";
+import { defaultDisplayName, reviewsForOrder } from "@/lib/services/reviews";
 import { getSettings } from "@/lib/services/settings";
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
@@ -20,6 +21,11 @@ import { Icon } from "@/components/ui/icon";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/ui/status-badge";
 import { ContactLinks } from "@/components/store/contact-links";
 import { PaymentProofForm } from "@/components/store/payment-proof-form";
+import { ReviewForm } from "@/components/store/review-form";
+import { OrderNotify } from "@/components/store/order-notify";
+import { isTerminal } from "@/lib/domain/order-status";
+import { emailConfigured } from "@/lib/services/email";
+import { getVapidKeys } from "@/lib/services/push";
 
 type Props = {
   params: Promise<{ locale: string; reference: string }>;
@@ -53,6 +59,11 @@ export default async function OrderPage({ params, searchParams }: Props) {
   const method = order.paymentMethodId ? await db.query.paymentMethods.findFirst({ where: eq(paymentMethods.id, order.paymentMethodId) }) : undefined;
   const payment = latestPayment(order.payments);
   const canPay = customerCanSubmitPayment(order.status);
+  const canReview = order.status === "completed";
+  const myReviews = canReview ? await reviewsForOrder(order.id) : [];
+  // Updates still to come: offer notifications until the order is delivered or closed.
+  const canNotify = !isTerminal(order.status) && order.status !== "completed";
+  const vapidPublicKey = canNotify ? (await getVapidKeys()).publicKey : "";
   const supportMessage = buildOrderSupportMessage(
     {
       reference: order.reference,
@@ -104,6 +115,17 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <div><dt className="text-xs text-fg-subtle">{t.order.createdAt}</dt><dd className="ltr-nums mt-1 font-semibold">{formatDateTime(order.createdAt, locale)}</dd></div>
         </dl>
       </section>
+
+      {canNotify ? (
+        <OrderNotify
+          reference={order.reference}
+          accessKey={key}
+          locale={locale}
+          vapidPublicKey={vapidPublicKey}
+          emailOn={!!order.customerEmail && emailConfigured()}
+          s={t.notify}
+        />
+      ) : null}
 
       {canPay ? (
         <section className="space-y-4 rounded-(--radius-card) border border-brand/30 bg-elevated p-5 shadow-soft">
@@ -183,6 +205,44 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <span className="ltr-nums text-xl font-black" dir="ltr">{formatIQD(order.total, locale)}</span>
         </div>
       </section>
+
+      {canReview ? (
+        <section id="review" className="space-y-3 rounded-(--radius-card) border border-amber-400/40 bg-elevated p-5 shadow-soft">
+          <h2 className="flex items-center gap-2 font-bold"><Icon name="star" className="size-5 text-amber-500" /> {t.reviews.rateTitle}</h2>
+          <p className="text-sm text-fg-muted">{t.reviews.rateBody}</p>
+          {order.items
+            .filter((i) => i.productId != null)
+            .map((i) => {
+              const mine = myReviews.find((r) => r.orderItemId === i.id);
+              return (
+                <ReviewForm
+                  key={i.id}
+                  reference={order.reference}
+                  accessKey={key}
+                  item={{ id: i.id, name: ar ? i.productNameAr : i.productNameEn, packageLabel: ar ? i.packageLabelAr : i.packageLabelEn }}
+                  existing={mine ? { rating: mine.rating, comment: mine.comment, displayName: mine.displayName, hidden: mine.status === "hidden" } : null}
+                  defaultName={defaultDisplayName(order.customerName)}
+                  s={{
+                    rating: t.reviews.rating,
+                    ratingLabels: [...t.reviews.ratingLabels],
+                    starsLabel: t.reviews.starsLabel,
+                    comment: t.reviews.comment,
+                    commentHint: t.reviews.commentHint,
+                    displayName: t.reviews.displayName,
+                    displayNameHint: t.reviews.displayNameHint,
+                    submit: t.reviews.submit,
+                    update: t.reviews.update,
+                    submitting: t.reviews.submitting,
+                    thanks: t.reviews.thanks,
+                    updated: t.reviews.updated,
+                    hiddenNote: t.reviews.hiddenNote,
+                    errors: { ...t.errors },
+                  }}
+                />
+              );
+            })}
+        </section>
+      ) : null}
 
       <section className="rounded-(--radius-card) border border-line bg-elevated p-5 shadow-soft">
         <h2 className="mb-4 font-bold">{t.order.history}</h2>

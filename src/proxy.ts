@@ -44,6 +44,8 @@ export function proxy(req: NextRequest) {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -70,7 +72,7 @@ export function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|webp|svg|ico|woff2?)$).*)",
+      source: "/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|manifest.webmanifest|sw.js|offline.html|.*\\.(?:png|jpg|jpeg|webp|svg|ico|woff2?)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

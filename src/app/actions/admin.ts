@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { assertPermission, AuthError } from "@/lib/auth/current-user";
@@ -15,6 +16,9 @@ import { deleteCategory, deleteProduct, moveCategory, saveCategory, saveProduct,
 import { updateCustomRequest } from "@/lib/services/custom-requests";
 import { storeFile } from "@/lib/services/files";
 import { reviewPayment, ServiceError, transitionOrder, updateAdminNotes } from "@/lib/services/orders";
+import { replyToReview, setReviewStatus } from "@/lib/services/reviews";
+import { eventForStatus, notifyCustomer } from "@/lib/services/order-notify";
+import { siteUrl } from "@/lib/server/request";
 import { loadSettings, saveSettings, storeSettingsSchema } from "@/lib/services/settings";
 import {
   adminNotesSchema,
@@ -23,6 +27,8 @@ import {
   paymentMethodSchema,
   paymentReviewSchema,
   productSchema,
+  reviewModerationSchema,
+  reviewReplySchema,
   statusChangeSchema,
 } from "@/lib/validation/schemas";
 import { normalizePhone } from "@/lib/domain/phone";
@@ -58,7 +64,9 @@ export async function reviewPaymentAction(_p: ActionState, fd: FormData) {
   return guarded("payments:review", async (actor) => {
     const parsed = paymentReviewSchema.safeParse(entries(fd));
     if (!parsed.success) return { error: "validation" };
-    await reviewPayment(parsed.data.paymentId, parsed.data.decision, parsed.data.note, actor);
+    const { orderId } = await reviewPayment(parsed.data.paymentId, parsed.data.decision, parsed.data.note, actor);
+    const base = await siteUrl();
+    after(() => notifyCustomer(orderId, parsed.data.decision === "confirm" ? "paid" : "paymentRejected", base));
     revalidatePath("/[locale]/admin", "layout");
     return { ok: true };
   });
@@ -69,6 +77,11 @@ export async function changeOrderStatusAction(_p: ActionState, fd: FormData) {
     const parsed = statusChangeSchema.safeParse(entries(fd));
     if (!parsed.success) return { error: "validation" };
     await transitionOrder(parsed.data.orderId, parsed.data.toStatus, { type: "staff", user: actor }, parsed.data.note || null);
+    const event = eventForStatus(parsed.data.toStatus);
+    if (event) {
+      const base = await siteUrl();
+      after(() => notifyCustomer(parsed.data.orderId, event, base));
+    }
     revalidatePath("/[locale]/admin", "layout");
     return { ok: true };
   });
@@ -80,6 +93,32 @@ export async function saveAdminNotesAction(_p: ActionState, fd: FormData) {
     if (!parsed.success) return { error: "validation" };
     await updateAdminNotes(parsed.data.orderId, parsed.data.adminNotes, actor);
     revalidatePath("/[locale]/admin/orders/[id]", "page");
+    return { ok: true, message: "saved" };
+  });
+}
+
+/* ------------------------------- Reviews ------------------------------- */
+
+export async function moderateReviewAction(_p: ActionState, fd: FormData) {
+  return guarded("reviews:manage", async (actor) => {
+    const parsed = reviewModerationSchema.safeParse(entries(fd));
+    if (!parsed.success) return { error: "validation" };
+    await setReviewStatus(parsed.data.reviewId, parsed.data.status, parsed.data.reason, actor);
+    revalidatePath("/[locale]/admin/reviews", "page");
+    revalidatePath("/[locale]/services/[slug]", "page");
+    revalidatePath("/[locale]", "page");
+    return { ok: true, message: "saved" };
+  });
+}
+
+export async function replyReviewAction(_p: ActionState, fd: FormData) {
+  return guarded("reviews:manage", async (actor) => {
+    const parsed = reviewReplySchema.safeParse(entries(fd));
+    if (!parsed.success) return { error: "validation" };
+    await replyToReview(parsed.data.reviewId, parsed.data.reply, actor);
+    revalidatePath("/[locale]/admin/reviews", "page");
+    revalidatePath("/[locale]/services/[slug]", "page");
+    revalidatePath("/[locale]", "page");
     return { ok: true, message: "saved" };
   });
 }

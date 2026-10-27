@@ -149,7 +149,13 @@ Reach us through the live chat on the site, WhatsApp, Telegram or Instagram.`,
 نحتفظ بالبيانات الشخصية للطلبات المنتهية لمدة محددة ثم نحذفها، ونحتفظ بالبيانات المالية غير الشخصية للسجلات.
 
 ## حقوقك
-يمكنك طلب حذف حسابك وبياناتك عبر التواصل معنا أو من صفحة حسابك.`,
+يمكنك طلب حذف حسابك وبياناتك عبر التواصل معنا أو من صفحة حسابك.
+
+## التقييمات
+عند تقييم طلب مكتمل يظهر للجميع التقييم والتعليق والاسم الذي تختاره فقط، مع علامة «مشتري موثّق». لا يظهر رقم هاتفك أو بريدك أو تفاصيل طلبك.
+
+## الإشعارات
+إذا فعّلت إشعارات الطلب نحفظ عنوان الإشعارات الخاص بمتصفحك لهذا الطلب فقط، ونستخدمه لإرسال تحديثات حالته، ونحذفه مع بيانات الطلب. يمكنك إيقافها في أي وقت من صفحة الطلب.`,
   privacyEn: `## Data we collect
 We collect only what we need to fulfil your order: name, phone number, optional email, the service details you provide, and payment proof information.
 
@@ -163,7 +169,13 @@ Your data is used only to fulfil and communicate about your order. We do not sel
 Personal data on finished orders is kept for a limited period and then erased. Non-personal financial records are kept for bookkeeping.
 
 ## Your rights
-You can request deletion of your account and data by contacting us or from your account page.`,
+You can request deletion of your account and data by contacting us or from your account page.
+
+## Reviews
+When you review a completed order, only the rating, your comment and the display name you choose are shown publicly, marked “Verified buyer”. Your phone, email and order details are never shown.
+
+## Notifications
+If you turn on order notifications, we store your browser's push address for that order only, use it to send status updates, and delete it with the order data. You can turn them off at any time from the order page.`,
   refundAr: `## الإلغاء
 يمكن إلغاء الطلب قبل تأكيد الدفع أو قبل بدء التنفيذ بالتواصل مع الدعم.
 
@@ -188,4 +200,22 @@ You can cancel an order before payment is confirmed or before work starts by con
 
 ## Timing
 Refund requests are reviewed manually and answered as soon as possible.`,
+} as const;
+
+/** Policy sections added after launch; appended to stored policies by a one-time content update. */
+export const privacyAdditions = {
+  ar: `
+
+## التقييمات
+عند تقييم طلب مكتمل يظهر للجميع التقييم والتعليق والاسم الذي تختاره فقط، مع علامة «مشتري موثّق». لا يظهر رقم هاتفك أو بريدك أو تفاصيل طلبك.
+
+## الإشعارات
+إذا فعّلت إشعارات الطلب نحفظ عنوان الإشعارات الخاص بمتصفحك لهذا الطلب فقط، ونستخدمه لإرسال تحديثات حالته، ونحذفه مع بيانات الطلب. يمكنك إيقافها في أي وقت من صفحة الطلب.`,
+  en: `
+
+## Reviews
+When you review a completed order, only the rating, your comment and the display name you choose are shown publicly, marked “Verified buyer”. Your phone, email and order details are never shown.
+
+## Notifications
+If you turn on order notifications, we store your browser's push address for that order only, use it to send status updates, and delete it with the order data. You can turn them off at any time from the order page.`,
 } as const;

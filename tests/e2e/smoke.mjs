@@ -39,10 +39,10 @@ const step = async (name, fn) => {
 const browser = await chromium.launch();
 const errors = [];
 try {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "ar-IQ" });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "ar-IQ", permissions: ["notifications"] });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(String(e)));
-  page.on("console", (m) => m.type() === "error" && !/favicon|404/.test(m.text()) && errors.push(m.text()));
+  page.on("console", (m) => m.type() === "error" && !/favicon|404|ERR_INTERNET_DISCONNECTED/.test(m.text()) && errors.push(m.text()));
 
   await step("root redirects to Arabic RTL home", async () => {
     await page.goto(BASE + "/");
@@ -121,6 +121,10 @@ try {
     orderUrl = page.url();
     await page.getByText("تم استلام طلبك").waitFor();
     await page.getByText("بانتظار الدفع").first().waitFor();
+    // Pending orders offer status notifications on this device.
+    // (Headless Chromium always reports notification permission as denied, so either state is accepted.)
+    const notify = page.getByTestId("order-notify");
+    await notify.getByRole("button", { name: "فعّل إشعارات هذا الطلب" }).or(notify.getByText("المتصفح يمنع الإشعارات")).waitFor();
     await shot(page, "06-order-confirmation");
   });
 
@@ -211,6 +215,43 @@ try {
     await step("customer now sees the order as completed", async () => {
       await page.goto(orderUrl.replace("&new=1", ""));
       await page.getByText("مكتمل").first().waitFor();
+      assert.equal(await page.getByTestId("order-notify").count(), 0, "no notification offer once delivered");
+    });
+    await step("customer posts a verified review from the completed order", async () => {
+      const form = page.locator('[data-testid^="review-form-"]').first();
+      await form.getByRole("button", { name: "انشر التقييم" }).click();
+      await form.getByText("اختر عدد النجوم.").waitFor();
+      await form.getByLabel("4 من 5 نجوم").check({ force: true });
+      await form.getByLabel("تعليقك (اختياري)").fill("وصلت الشدات خلال دقائق، شكراً");
+      assert.equal(await form.getByLabel("الاسم الظاهر").inputValue(), "زبون");
+      await form.getByRole("button", { name: "انشر التقييم" }).click();
+      await form.getByText("شكراً! تم نشر تقييمك.").waitFor();
+      await shot(page, "09b-order-review");
+    });
+    await step("review shows on the product page and home page with the verified badge", async () => {
+      await page.goto(BASE + "/ar/services/pubg-mobile-uc");
+      const section = page.locator("#reviews");
+      await section.getByText("وصلت الشدات خلال دقائق، شكراً").waitFor();
+      await section.getByText("مشتري موثّق").first().waitFor();
+      await page.getByRole("link", { name: /4\.0/ }).first().waitFor();
+      await page.goto(BASE + "/ar");
+      await page.getByText("آراء زبائننا").waitFor();
+      await page.getByText("وصلت الشدات خلال دقائق، شكراً").waitFor();
+    });
+    await step("admin can reply to and hide a review", async () => {
+      await ap.goto(BASE + "/ar/admin/reviews");
+      const card = ap.locator('[data-testid^="admin-review-"]').filter({ hasText: "وصلت الشدات خلال دقائق" });
+      await card.getByLabel("رد المتجر (يظهر للعامة)").fill("شكراً لثقتك 🌷");
+      await card.getByRole("button", { name: "حفظ الرد" }).click();
+      await card.getByText("تم الحفظ").first().waitFor();
+      await shot(ap, "09c-admin-reviews");
+      await page.goto(BASE + "/ar/services/pubg-mobile-uc");
+      await page.locator("#reviews").getByText("شكراً لثقتك 🌷").waitFor();
+      await card.getByLabel("سبب الإخفاء (يظهر لكم فقط)").fill("اختبار");
+      await card.getByRole("button", { name: "إخفاء" }).click();
+      await card.getByText("مخفي").first().waitFor();
+      await page.reload();
+      assert.equal(await page.locator("#reviews").getByText("وصلت الشدات خلال دقائق، شكراً").count(), 0);
     });
     await step("CSV export works for admin", async () => {
       const res = await ap.request.get(`${BASE}/api/admin/orders/export?q=${reference}`);
@@ -219,7 +260,7 @@ try {
       assert.ok(body.includes(reference));
     });
     await step("admin pages render (EN, desktop)", async () => {
-      for (const p of ["products", "products/new", "categories", "payment-methods", "customers", "requests", "settings", "audit"]) {
+      for (const p of ["products", "products/new", "categories", "payment-methods", "customers", "requests", "settings", "audit", "reviews"]) {
         const r = await ap.goto(`${BASE}/en/admin/${p}`);
         assert.equal(r.status(), 200, p);
       }
@@ -229,6 +270,43 @@ try {
   } else {
     console.log("(admin steps skipped: set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD)");
   }
+
+  await step("app files: manifest, service worker and offline page", async () => {
+    const manifest = await page.request.get(BASE + "/manifest.webmanifest");
+    assert.equal(manifest.status(), 200);
+    const m = await manifest.json();
+    assert.equal(m.display, "standalone");
+    assert.ok(m.shortcuts.length >= 3);
+    const sw = await page.request.get(BASE + "/sw.js");
+    assert.equal(sw.status(), 200);
+    assert.match(sw.headers()["content-type"], /javascript/);
+    assert.match(sw.headers()["cache-control"], /no-cache/);
+    const offline = await page.request.get(BASE + "/offline.html");
+    assert.equal(offline.status(), 200);
+    // The store page registers the worker.
+    await page.goto(BASE + "/ar");
+    await page.waitForFunction(() => navigator.serviceWorker.getRegistration().then((r) => !!r), null, { timeout: 15000 });
+  });
+
+  await step("offline navigation shows the offline page", async () => {
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload(); // now controlled by the worker
+    await page.context().setOffline(true);
+    try {
+      await page.goto(BASE + "/ar/services").catch(() => undefined);
+      await page.getByText("لا يوجد اتصال بالإنترنت").waitFor();
+      await shot(page, "12-offline");
+    } finally {
+      await page.context().setOffline(false);
+    }
+  });
+
+  await step("install button opens install steps", async () => {
+    await page.goto(BASE + "/ar");
+    await page.getByRole("button", { name: "حمّل التطبيق" }).click();
+    await page.getByRole("dialog", { name: "التثبيت على هذا الجهاز" }).waitFor();
+    await page.keyboard.press("Escape");
+  });
 
   await step("dark mode toggle applies the dark class", async () => {
     await page.goto(BASE + "/ar");

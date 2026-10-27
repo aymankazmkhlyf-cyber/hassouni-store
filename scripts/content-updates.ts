@@ -3,7 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "../src/lib/db/schema";
-import { defaultPolicies } from "../src/lib/i18n/content";
+import { defaultPolicies, privacyAdditions } from "../src/lib/i18n/content";
 
 /*
  * One-time catalog updates supplied by the store owner, applied during deploy
@@ -709,6 +709,28 @@ async function catalogV7(tx: Tx) {
     .where(eq(schema.storeSettings.key, "store"));
 }
 
+/** Appends the reviews + notifications sections to the stored privacy policy (keeps any owner edits). */
+async function privacyV8(tx: Tx) {
+  const [row] = await tx.select().from(schema.storeSettings).where(eq(schema.storeSettings.key, "store")).for("update");
+  if (!row) return;
+  const value = row.value as Record<string, unknown>;
+  const add = (current: unknown, fallback: string, extra: string, marker: string) => {
+    const text = typeof current === "string" && current.trim() ? current : fallback;
+    return text.includes(marker) ? text : text.trimEnd() + extra;
+  };
+  await tx
+    .update(schema.storeSettings)
+    .set({
+      value: {
+        ...value,
+        privacyAr: add(value.privacyAr, defaultPolicies.privacyAr, privacyAdditions.ar, "## التقييمات"),
+        privacyEn: add(value.privacyEn, defaultPolicies.privacyEn, privacyAdditions.en, "## Reviews"),
+        policiesUpdatedAt: new Date().toISOString(),
+      },
+    })
+    .where(eq(schema.storeSettings.key, "store"));
+}
+
 const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v1", run: catalogV1 },
   { id: "2026-10-26-catalog-v2", run: catalogV2 },
@@ -717,6 +739,7 @@ const UPDATES: { id: string; run: (tx: Tx) => Promise<void> }[] = [
   { id: "2026-10-26-catalog-v5", run: catalogV5 },
   { id: "2026-10-26-catalog-v6", run: catalogV6 },
   { id: "2026-10-26-policies-v7", run: catalogV7 },
+  { id: "2026-10-27-privacy-v8", run: privacyV8 },
 ];
 
 const KEY = "content_updates";

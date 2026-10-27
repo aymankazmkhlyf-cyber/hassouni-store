@@ -1,6 +1,6 @@
 import { and, count, desc, eq, ilike, inArray, lt, or, sql } from "drizzle-orm";
 import { db, type DbOrTx } from "@/lib/db";
-import { customRequests, files, orders, payments, users, type UserRole } from "@/lib/db/schema";
+import { customRequests, files, orders, payments, pushSubscriptions, reviews, users, type UserRole } from "@/lib/db/schema";
 import { burnPasswordCheck, hashPassword, verifyPassword } from "@/lib/auth/password";
 import { invalidateUserSessions } from "@/lib/auth/session";
 import { escapeLike } from "./catalog";
@@ -115,6 +115,7 @@ export async function setCustomerStatus(id: string, status: "active" | "suspende
 }
 
 const ERASED = "[deleted]";
+const REVIEW_ANON = "Customer · زبون";
 
 /** Removes personal data from orders. Financial data (amounts, items, statuses) is kept. */
 async function scrubOrders(tx: DbOrTx, orderIds: string[]) {
@@ -131,6 +132,9 @@ async function scrubOrders(tx: DbOrTx, orderIds: string[]) {
   await tx.execute(sql`UPDATE order_items SET inputs = '[]'::jsonb WHERE order_id IN (${sql.join(orderIds.map((i) => sql`${i}::uuid`), sql`, `)})`);
   await tx.update(payments).set({ customerReference: null, receiptFileId: null }).where(inArray(payments.orderId, orderIds));
   if (receiptIds.length) await tx.delete(files).where(inArray(files.id, receiptIds));
+  await tx.delete(pushSubscriptions).where(inArray(pushSubscriptions.orderId, orderIds));
+  // Reviews stay published (they are about the service), but no longer carry the customer's chosen name.
+  await tx.update(reviews).set({ displayName: REVIEW_ANON }).where(inArray(reviews.orderId, orderIds));
 }
 
 /** Account deletion (by the customer or an admin): scrub linked orders, then delete the user row. */

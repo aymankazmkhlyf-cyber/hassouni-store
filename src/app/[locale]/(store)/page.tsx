@@ -2,20 +2,23 @@ import Link from "next/link";
 import { resolveLocale, type LocaleParams } from "@/lib/i18n/server";
 import { faq } from "@/lib/i18n/content";
 import { listCategories, listProducts } from "@/lib/services/catalog";
+import { latestReviews } from "@/lib/services/reviews";
 import { getSettings } from "@/lib/services/settings";
 import { ButtonLink } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { CategoryCard, ProductGrid } from "@/components/store/product-card";
 import { ContactLinks } from "@/components/store/contact-links";
 import { FaqList } from "@/components/store/faq-list";
+import { LatestReviews } from "@/components/store/reviews";
 
 export default async function HomePage({ params }: LocaleParams) {
   const { locale, t } = await resolveLocale(params);
   const settings = await getSettings();
-  const [categories, featured, offers] = await Promise.all([
+  const [categories, featured, offers, reviews] = await Promise.all([
     listCategories({ activeOnly: true }),
     listProducts({ featuredOnly: true, pageSize: 8 }),
     settings.showOffers ? listProducts({ offersOnly: true, pageSize: 4 }) : Promise.resolve(null),
+    latestReviews(6),
   ]);
   const heroTitle = (locale === "ar" ? settings.heroTitleAr : settings.heroTitleEn) || t.home.heroTitle;
   const heroSubtitle = (locale === "ar" ? settings.heroSubtitleAr : settings.heroSubtitleEn) || t.home.heroSubtitle;
@@ -86,6 +89,8 @@ export default async function HomePage({ params }: LocaleParams) {
           ))}
         </ol>
       </Section>
+
+      <LatestReviews items={reviews} locale={locale} t={t} />
 
       <Section title={t.home.faqTitle} action={<Link href={`/${locale}/faq`} className="text-sm font-semibold text-brand hover:underline">{t.common.viewAll}</Link>}>
         <FaqList items={faq[locale].slice(0, 4)} />

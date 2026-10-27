@@ -368,6 +368,7 @@ export async function reviewPayment(
       }
     }
     await audit(actor, `payment.${decision}`, "payment", paymentId, { reference: order.reference, amount: payment.amount }, tx);
+    return { orderId: order.id };
   });
 }
 

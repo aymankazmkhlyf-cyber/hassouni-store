@@ -15,7 +15,7 @@ import { FormPendingContext, useActionForm } from "@/components/ui/use-action-fo
 type Errors = Record<string, string>;
 const msg = (errors: Errors, code?: string) => (code ? fmt(errors[code] ?? errors.validation ?? code, { field: "" }) : undefined);
 
-export function TrackForm({ locale, s, errors }: { locale: Locale; s: { reference: string; accessKey: string; submit: string }; errors: Errors }) {
+export function TrackForm({ locale, s, errors, defaultReference }: { locale: Locale; s: { reference: string; accessKey: string; submit: string }; errors: Errors; defaultReference?: string }) {
   const uid = useId();
   const { state, action, onSubmit, pending } = useActionForm(trackOrderAction, {});
   return (
@@ -24,7 +24,7 @@ export function TrackForm({ locale, s, errors }: { locale: Locale; s: { referenc
       <input type="hidden" name="locale" value={locale} />
       {state.error ? <Alert tone="danger" title={msg(errors, state.error)} /> : null}
       <Field id={`${uid}-ref`} label={s.reference} required>
-        <Input {...aria(`${uid}-ref`)} name="reference" dir="ltr" placeholder="HDS-XXXX-XXXX-XX" autoComplete="off" required maxLength={40} />
+        <Input {...aria(`${uid}-ref`)} name="reference" dir="ltr" placeholder="HDS-XXXX-XXXX-XX" autoComplete="off" required maxLength={40} defaultValue={defaultReference} />
       </Field>
       <Field id={`${uid}-key`} label={s.accessKey} required>
         <Input {...aria(`${uid}-key`)} name="key" dir="ltr" autoComplete="off" required maxLength={60} />

@@ -6,6 +6,7 @@ import { CartProvider } from "@/components/store/cart-provider";
 import { Footer } from "@/components/store/footer";
 import { Header } from "@/components/store/header";
 import { SupportWidget } from "@/components/store/support-widget";
+import { InstallPrompt, ServiceWorkerRegister } from "@/components/store/pwa";
 
 export default async function StoreLayout({ children, params }: LocaleParams & { children: React.ReactNode }) {
   const { locale, t } = await resolveLocale(params);
@@ -18,6 +19,8 @@ export default async function StoreLayout({ children, params }: LocaleParams & {
       </main>
       <Footer locale={locale} t={t} settings={settings} categories={categories} />
       <SupportWidget locale={locale} s={{ ...t.support, rateLimited: t.errors.rateLimited, invalidPhone: t.errors.invalidPhone }} />
+      <ServiceWorkerRegister />
+      <InstallPrompt s={{ ...t.pwa, iosSteps: [...t.pwa.iosSteps], otherSteps: [...t.pwa.otherSteps] }} />
     </CartProvider>
   );
 }

@@ -17,6 +17,8 @@ export const RATE_LIMITS = {
   codeRequestAccount: { limit: 3, windowSeconds: 60 * 60 },
   codeVerify: { limit: 10, windowSeconds: 15 * 60 },
   supportMessage: { limit: 20, windowSeconds: 10 * 60 },
+  review: { limit: 15, windowSeconds: 60 * 60 },
+  pushSubscribe: { limit: 10, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

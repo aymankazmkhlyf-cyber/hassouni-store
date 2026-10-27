@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { fmt, getDictionary, isLocale } from "@/lib/i18n";
 import { formatIQD } from "@/lib/domain/money";
 import { getProductDetail, listProducts } from "@/lib/services/catalog";
+import { listProductReviews, productRatingSummary } from "@/lib/services/reviews";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
@@ -10,6 +11,8 @@ import { RichText } from "@/components/ui/rich-text";
 import { AddToCart, type AddToCartProduct } from "@/components/store/add-to-cart";
 import { ProductArt } from "@/components/store/product-art";
 import { Breadcrumbs, ProductGrid } from "@/components/store/product-card";
+import { ProductReviews } from "@/components/store/reviews";
+import { Stars } from "@/components/ui/stars";
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 
@@ -35,7 +38,11 @@ export default async function ProductPage({ params }: Props) {
   const name = ar ? product.nameAr : product.nameEn;
   const categoryName = ar ? product.category.nameAr : product.category.nameEn;
   const delivery = ar ? product.deliveryTimeAr : product.deliveryTimeEn;
-  const related = await listProducts({ categoryId: product.categoryId, excludeId: product.id, pageSize: 4 });
+  const [related, rating, reviewItems] = await Promise.all([
+    listProducts({ categoryId: product.categoryId, excludeId: product.id, pageSize: 4 }),
+    productRatingSummary(product.id),
+    listProductReviews(product.id, { limit: 20 }),
+  ]);
 
   const forClient: AddToCartProduct = {
     id: product.id,
@@ -95,6 +102,13 @@ export default async function ProductPage({ params }: Props) {
               {product.isSample ? <Badge tone="warning">{t.common.sample}</Badge> : null}
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{name}</h1>
+            {rating.count ? (
+              <a href="#reviews" className="mt-2 inline-flex items-center gap-2 text-sm hover:underline">
+                <Stars value={rating.average} label={fmt(t.reviews.outOf, { avg: rating.average.toFixed(1) })} className="text-base" />
+                <span className="ltr-nums font-bold">{rating.average.toFixed(1)}</span>
+                <span className="text-fg-muted">({fmt(t.reviews.count, { count: rating.count })})</span>
+              </a>
+            ) : null}
             {(ar ? product.summaryAr : product.summaryEn) ? <p className="mt-2 text-fg-muted">{ar ? product.summaryAr : product.summaryEn}</p> : null}
           </div>
 
@@ -143,6 +157,8 @@ export default async function ProductPage({ params }: Props) {
           ) : null}
         </div>
       </div>
+
+      <ProductReviews summary={rating} items={reviewItems} locale={locale} t={t} />
 
       {related.items.length ? (
         <section className="mt-14">
