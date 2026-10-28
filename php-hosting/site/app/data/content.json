@@ -1,0 +1,84 @@
+{
+ "faq": {
+  "ar": [
+   {
+    "q": "كيف أدفع ثمن طلبي؟",
+    "a": "ندعم زين كاش وآسياسيل وكي كارد (سوبر كي)، والدفع من رصيد المحفظة لأصحاب الحسابات. بعد إنشاء الطلب تظهر لك بيانات الدفع، ادفع المبلغ ثم أرسل رقم العملية أو صورة الإيصال من صفحة الطلب."
+   },
+   {
+    "q": "هل يتم تأكيد الدفع تلقائياً؟",
+    "a": "لا. يراجع فريق المتجر كل عملية دفع يدوياً قبل بدء التنفيذ، وستتغير حالة الطلب إلى «مدفوع» بعد التحقق."
+   },
+   {
+    "q": "هل تطلبون كلمة مرور حسابي؟",
+    "a": "أبداً. لا نطلب كلمات مرور حسابات السوشل ميديا أو الألعاب ولا رموز التحقق. إذا طلب منك أحد ذلك باسمنا فهو احتيال."
+   },
+   {
+    "q": "كم يستغرق تنفيذ الطلب؟",
+    "a": "تختلف المدة حسب الخدمة، وتظهر المدة المتوقعة في صفحة كل خدمة. تبدأ المدة بعد تأكيد الدفع."
+   },
+   {
+    "q": "كيف أتابع طلبي؟",
+    "a": "من صفحة «تتبع طلب» باستخدام رقم الطلب ورمز الوصول، أو من صفحة «حسابي» إذا كنت مسجّل الدخول."
+   },
+   {
+    "q": "هل يمكنني إلغاء الطلب أو استرجاع المبلغ؟",
+    "a": "يمكن إلغاء الطلب قبل بدء التنفيذ. تفاصيل الاسترجاع موضحة في سياسة الاسترجاع والإلغاء."
+   },
+   {
+    "q": "كيف أتواصل معكم بسرعة؟",
+    "a": "اضغط زر المحادثة 💬 في زاوية الموقع. يصلك رد تلقائي فوراً، ويرد عليك فريقنا في نفس المحادثة. ويمكنك أيضاً مراسلتنا على واتساب أو تلكرام أو إنستغرام."
+   },
+   {
+    "q": "هل الخدمات التي لا أجدها في المتجر متوفرة؟",
+    "a": "اطلبها من صفحة «طلب خدمة خاصة» (مثل الترويج، تجهيز الحسابات، تبديل الرصيد، اشتراكات أخرى) ونرد عليك بالسعر."
+   }
+  ],
+  "en": [
+   {
+    "q": "How do I pay for my order?",
+    "a": "We accept Zain Cash, AsiaCell and Qi Card (Super Qi), plus wallet balance for account holders. After you place the order you will see the payment details; pay the amount, then send the transaction number or a receipt photo from the order page."
+   },
+   {
+    "q": "Is payment confirmed automatically?",
+    "a": "No. The store team reviews every payment manually before starting work. The order status changes to “Paid” after verification."
+   },
+   {
+    "q": "Do you ask for my account password?",
+    "a": "Never. We do not ask for social media or gaming passwords or verification codes. Anyone asking for them in our name is a scammer."
+   },
+   {
+    "q": "How long does delivery take?",
+    "a": "It depends on the service; the estimated time is shown on each service page. It starts after payment is confirmed."
+   },
+   {
+    "q": "How do I track my order?",
+    "a": "Use the “Track order” page with your order reference and access key, or the “My account” page if you are logged in."
+   },
+   {
+    "q": "Can I cancel or get a refund?",
+    "a": "Orders can be cancelled before work starts. Refund details are explained in the refund and cancellation policy."
+   },
+   {
+    "q": "How can I reach you quickly?",
+    "a": "Tap the chat button 💬 in the corner of the site. You get an instant auto-reply and our team answers in the same chat. You can also message us on WhatsApp, Telegram or Instagram."
+   },
+   {
+    "q": "Can I order services that aren't listed?",
+    "a": "Yes — use the “Custom request” page (promotion, account setup, balance exchange, other subscriptions) and we will reply with a price."
+   }
+  ]
+ },
+ "defaultPolicies": {
+  "termsAr": "## مقدمة\nباستخدامك لموقع متجر حسوني لخدمات السوشل ميديا وإنشائك طلباً، فإنك توافق على هذه الشروط.\n\n## الطلبات والدفع\n- الأسعار بالدينار العراقي، ويُحسب المجموع النهائي من قبل المتجر عند إنشاء الطلب.\n- يتم التحقق من الدفع يدوياً، ولا يبدأ التنفيذ قبل تأكيد الدفع.\n- إرسال إيصال الدفع لا يعني تأكيد الطلب.\n\n## مسؤولية العميل\n- يلتزم العميل بإدخال بيانات صحيحة (مثل رقم اللاعب أو رابط الحساب).\n- لا يطلب المتجر كلمات المرور أو رموز التحقق، ويجب عدم مشاركتها مع أي جهة.\n\n## الخدمات\n- نقدم فقط الخدمات المشروعة والمصرح بها. يحق للمتجر رفض أي طلب مخالف.\n- مدد التنفيذ تقديرية وقد تختلف.\n\n## التواصل\nللاستفسار تواصل معنا عبر القنوات الموضحة في صفحة «تواصل معنا».\n\n## شروط خاصة بكل خدمة\n- شحن الألعاب (ببجي، لودو...): يتم برقم اللاعب فقط. الشحن لرقم لاعب خاطئ أدخله العميل لا يمكن استرجاعه.\n- المتابعين واللايكات والمشاهدات: يجب أن يكون الحساب أو المنشور عاماً طوال فترة التنفيذ. قد يحدث نقص طبيعي بمرور الوقت بسبب سياسات المنصات، ولا يتحمل المتجر إجراءات المنصات على الحسابات.\n- الاشتراكات الرقمية: تُفعّل بالتنسيق مع الدعم بعد تأكيد الدفع، ولا نطلب كلمة المرور أو رمز التحقق أبداً.\n- الأرقام: للاستخدام المشروع فقط. يُمنع استخدامها في الاحتيال أو الإزعاج أو انتحال الشخصية، ويحق للمتجر رفض أي طلب.\n- تبديل الرصيد: يتم فقط بعد استلام المبلغ والتحقق منه، ويحق للمتجر رفض أو إيقاف أي عملية مشبوهة.\n- التصاميم: تشمل تعديلات بسيطة على التصميم المتفق عليه؛ التغييرات الكبيرة تُعامل كطلب جديد.\n\n## الدعم\nيمكنك التواصل معنا عبر المحادثة المباشرة داخل الموقع أو واتساب أو تلكرام أو إنستغرام.",
+  "termsEn": "## Introduction\nBy using the Hassouni Digital Services website and placing an order, you agree to these terms.\n\n## Orders and payment\n- Prices are in Iraqi Dinar; the final total is calculated by the store when the order is created.\n- Payments are verified manually and work does not start before payment is confirmed.\n- Sending a payment receipt does not by itself confirm the order.\n\n## Customer responsibilities\n- You must provide accurate details (such as a player ID or profile link).\n- The store never asks for passwords or verification codes; do not share them with anyone.\n\n## Services\n- We offer only lawful, authorized services and may refuse any order that is not.\n- Delivery times are estimates and may vary.\n\n## Contact\nFor questions, reach us through the channels listed on the Contact page.\n\n## Service-specific terms\n- Game top-ups (PUBG, Ludo...): delivered using the player ID only. Top-ups sent to a wrong player ID entered by the customer cannot be refunded.\n- Followers, likes and views: the account or post must stay public during delivery. Natural drops may happen over time due to platform policies; the store is not responsible for actions platforms take on accounts.\n- Digital subscriptions: activated with support after payment is confirmed. We never ask for passwords or verification codes.\n- Numbers: lawful use only. Fraud, spam or impersonation is forbidden and the store may refuse any order.\n- Balance exchange: carried out only after the amount is received and verified; the store may refuse or stop any suspicious transaction.\n- Design: includes minor revisions of the agreed design; major changes are treated as a new request.\n\n## Support\nReach us through the live chat on the site, WhatsApp, Telegram or Instagram.",
+  "privacyAr": "## البيانات التي نجمعها\nنجمع فقط ما نحتاجه لتنفيذ طلبك: الاسم، رقم الهاتف، البريد الإلكتروني (اختياري)، بيانات الخدمة المطلوبة، ومعلومات إثبات الدفع.\n\n## ما لا نجمعه\nلا نطلب ولا نخزن كلمات مرور الحسابات أو أرقام البطاقات المصرفية أو رمز CVV أو الرمز السري.\n\n## استخدام البيانات\nنستخدم بياناتك لتنفيذ الطلب والتواصل معك بخصوصه فقط، ولا نبيعها لأي طرف.\n\n## الاحتفاظ بالبيانات\nنحتفظ بالبيانات الشخصية للطلبات المنتهية لمدة محددة ثم نحذفها، ونحتفظ بالبيانات المالية غير الشخصية للسجلات.\n\n## حقوقك\nيمكنك طلب حذف حسابك وبياناتك عبر التواصل معنا أو من صفحة حسابك.\n\n## التقييمات\nعند تقييم طلب مكتمل يظهر للجميع التقييم والتعليق والاسم الذي تختاره فقط، مع علامة «مشتري موثّق». لا يظهر رقم هاتفك أو بريدك أو تفاصيل طلبك.\n\n## الإشعارات\nإذا فعّلت إشعارات الطلب نحفظ عنوان الإشعارات الخاص بمتصفحك لهذا الطلب فقط، ونستخدمه لإرسال تحديثات حالته، ونحذفه مع بيانات الطلب. يمكنك إيقافها في أي وقت من صفحة الطلب.",
+  "privacyEn": "## Data we collect\nWe collect only what we need to fulfil your order: name, phone number, optional email, the service details you provide, and payment proof information.\n\n## What we never collect\nWe never ask for or store account passwords, card numbers, CVV codes or PINs.\n\n## How we use data\nYour data is used only to fulfil and communicate about your order. We do not sell it.\n\n## Retention\nPersonal data on finished orders is kept for a limited period and then erased. Non-personal financial records are kept for bookkeeping.\n\n## Your rights\nYou can request deletion of your account and data by contacting us or from your account page.\n\n## Reviews\nWhen you review a completed order, only the rating, your comment and the display name you choose are shown publicly, marked “Verified buyer”. Your phone, email and order details are never shown.\n\n## Notifications\nIf you turn on order notifications, we store your browser's push address for that order only, use it to send status updates, and delete it with the order data. You can turn them off at any time from the order page.",
+  "refundAr": "## الإلغاء\nيمكن إلغاء الطلب قبل تأكيد الدفع أو قبل بدء التنفيذ بالتواصل مع الدعم.\n\n## الاسترجاع\n- إذا تعذّر تنفيذ الخدمة لسبب يعود للمتجر، يُعاد المبلغ المدفوع.\n- لا يمكن استرجاع المبلغ بعد اكتمال تنفيذ الخدمة الرقمية، إلا إذا كانت الخدمة غير مطابقة للوصف.\n- الأخطاء في البيانات التي يدخلها العميل (مثل رقم لاعب خاطئ) قد لا تكون قابلة للاسترجاع.\n- الاشتراكات والأرقام بعد تفعيلها أو تسليمها لا يمكن استرجاعها إلا إذا كانت لا تعمل كما هو موصوف.\n- عند الاسترجاع يُعاد المبلغ بنفس طريقة الدفع قدر الإمكان.\n\n## المدة\nتتم مراجعة طلبات الاسترجاع يدوياً، ويتم الرد عليها في أقرب وقت ممكن.",
+  "refundEn": "## Cancellation\nYou can cancel an order before payment is confirmed or before work starts by contacting support.\n\n## Refunds\n- If the store cannot deliver the service, the amount paid is refunded.\n- Completed digital services cannot be refunded unless they did not match the description.\n- Mistakes in details provided by the customer (such as a wrong player ID) may not be refundable.\n- Subscriptions and numbers cannot be refunded once activated or delivered, unless they do not work as described.\n- Refunds are returned through the original payment method where possible.\n\n## Timing\nRefund requests are reviewed manually and answered as soon as possible."
+ },
+ "privacyAdditions": {
+  "ar": "\n\n## التقييمات\nعند تقييم طلب مكتمل يظهر للجميع التقييم والتعليق والاسم الذي تختاره فقط، مع علامة «مشتري موثّق». لا يظهر رقم هاتفك أو بريدك أو تفاصيل طلبك.\n\n## الإشعارات\nإذا فعّلت إشعارات الطلب نحفظ عنوان الإشعارات الخاص بمتصفحك لهذا الطلب فقط، ونستخدمه لإرسال تحديثات حالته، ونحذفه مع بيانات الطلب. يمكنك إيقافها في أي وقت من صفحة الطلب.",
+  "en": "\n\n## Reviews\nWhen you review a completed order, only the rating, your comment and the display name you choose are shown publicly, marked “Verified buyer”. Your phone, email and order details are never shown.\n\n## Notifications\nIf you turn on order notifications, we store your browser's push address for that order only, use it to send status updates, and delete it with the order data. You can turn them off at any time from the order page."
+ }
+}
