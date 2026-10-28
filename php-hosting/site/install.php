@@ -100,7 +100,8 @@ if (!$installed && method() === 'POST') {
             if ($source === 'import') {
                 if (!extension_loaded('pdo_pgsql')) throw new RuntimeException('الاستضافة ما بيها PDO PostgreSQL، فما أكدر أنقل من القاعدة القديمة. اختر "متجر جديد" أو فعّل الإضافة من cPanel → Select PHP Version.');
                 $counts = import_from_pg(pg_connect_url($pgUrl), $pdo);
-            } else {
+            } elseif ((int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn() === 0) {
+                // Skipped when the catalog was already imported by hand (phpMyAdmin → hassouni-database.sql).
                 run_sql_file($pdo, APP_DIR . '/sql/seed.sql');
             }
             upsert_staff_account($adminEmail, $adminName, $adminPass, 'admin');
