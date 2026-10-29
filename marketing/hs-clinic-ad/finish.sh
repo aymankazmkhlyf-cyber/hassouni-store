@@ -5,8 +5,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p deliver
 
+# Remotion's JPEG frames come out as full-range yuvj420p: convert once to standard yuv420p (TV range, BT.709).
+ffmpeg -v error -y -i out/video-silent.mp4 -vf "scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p" \
+  -c:v libx264 -preset slow -crf 14 -profile:v high -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+  -r 60 -an out/video-tv.mp4
+
 mux() { # $1 audio wav, $2 output
-  ffmpeg -v error -y -i out/video-silent.mp4 -i "$1" -map 0:v:0 -map 1:a:0 \
+  ffmpeg -v error -y -i out/video-tv.mp4 -i "$1" -map 0:v:0 -map 1:a:0 \
     -c:v copy -c:a aac -b:a 320k -ar 48000 -ac 2 -t 60 -movflags +faststart "$2"
 }
 mux audio/final_mix.wav deliver/final_ad.mp4
@@ -22,8 +27,8 @@ report=deliver/qa-report.txt
   done
   echo
   echo "== video: CRF / encoder settings =="
-  ffprobe -v error -show_entries format_tags=encoder -of default=nw=1 out/video-silent.mp4 || true
-  strings out/video-silent.mp4 | grep -o 'crf=[0-9.]*' | head -1 || true
+  ffprobe -v error -show_entries format_tags=encoder -of default=nw=1 out/video-tv.mp4 || true
+  strings out/video-tv.mp4 | grep -o 'crf=[0-9.]*' | head -1 || true
   echo
   echo "== black frames (blackdetect d=0.04 pix_th=0.10) =="
   ffmpeg -v info -i deliver/final_ad.mp4 -vf blackdetect=d=0.04:pix_th=0.10 -an -f null - 2>&1 | grep -E 'black_start' || echo "none"
