@@ -34,7 +34,7 @@ export const windowTexture = (variant: number, litRatio = 0.32, cool = false) =>
         const k = 0.55 + r() * 0.45;
         g.fillStyle = warm ? `rgba(255,${190 + Math.floor(r() * 40)},${110 + Math.floor(r() * 50)},${k})` : `rgba(140,${200 + Math.floor(r() * 30)},255,${k})`;
       } else {
-        g.fillStyle = `rgba(30,45,65,${0.35 + r() * 0.3})`;
+        g.fillStyle = `rgba(30,45,65,${0.08 + r() * 0.12})`;
       }
       g.fillRect(x * 8 + 1.5, y * 8 + 2, 5, 4.5);
     }
@@ -49,7 +49,7 @@ export const windowTexture = (variant: number, litRatio = 0.32, cool = false) =>
 };
 
 /** Box whose UVs repeat the window texture in proportion to its size (one tile ≈ tile × 2·tile units). */
-export const buildingGeometry = (w: number, h: number, d: number, tile = 9) => {
+export const buildingGeometry = (w: number, h: number, d: number, tile = 12) => {
   const geo = new THREE.BoxGeometry(w, h, d);
   const uv = geo.attributes.uv as THREE.BufferAttribute;
   const normal = geo.attributes.normal as THREE.BufferAttribute;

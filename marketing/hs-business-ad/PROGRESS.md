@@ -6,7 +6,7 @@ Never redo a finished part; commit any later fix to it separately.
 | Part | Contents | Status |
 |---|---|---|
 | 1 | Setup, design system, `texts.ts`, 3D base, icons, audio engine | ✅ |
-| 2 | Scenes 0.0–12.0 s (hook + reveal) | ⏳ |
+| 2 | Scenes 0.0–12.0 s (hook + reveal) | ✅ |
 | 3 | Scenes 12.0–28.0 s (features 1–3) | ⏳ |
 | 4 | Scenes 28.0–44.0 s (features 4–6) | ⏳ |
 | 5 | Scenes 44.0–60.0 s + seamless loop + Video A assembly | ⏳ |
@@ -32,3 +32,9 @@ Never redo a finished part; commit any later fix to it separately.
 - Preview: `previews/part1.mp4` (design-system reel), stills `previews/part1/`.
 - Text QA: 0 problems. `reveal2` (7 words) is shown on two lines (break after the 4th word); the string itself is unchanged.
 - Notes for later parts: city/globe/tower cameras are only defaults; each scene frames its own shot. `reveal1` needs a 2+2 break or 68 px to avoid a one-word second line.
+
+### Part 2 ✅
+- `src/scenes/Part2.tsx`: HookShot (letterboxed night city, push-in, rack focus at 1.4 s, ticking clock, glowing phone calling «سفريات الأفق»), DoorShot (office door slams at 3.6 s, «مكتب الريادة» plaque, lock), DarkPhoneShot (smash cut at 4.2 s, screen dies at 4.6 s), TurnShot (black, silence, anamorphic flare builds), RevealShot (flash + bars open at 7.0 s, HS logo with light sweep, orbit ring → phone match cut at 8.3 s, orbiting phone with the agency homepage, glass cards fly out at 10.4 s, tap at 11.6 s).
+- `src/scenes/Screens.tsx`: CallScreen, HomeScreen. `src/headlines.ts`: all headline windows. `src/VideoA.tsx`: composition (picture → counter → headlines → flash → grade → letterbox).
+- Timing: the turn line and the two reveal lines run past their scene edges so each stays readable ≥ 1.8 s (tools/timing_qa.ts: 0 problems). `reveal2` runs to 13.75 s, so the 1/7 headline starts at 13.78 s (Part 3).
+- Preview: `previews/part2.mp4`, stills `previews/part2/`.
