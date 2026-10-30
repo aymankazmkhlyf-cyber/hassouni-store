@@ -1,0 +1,52 @@
+HS cinematic ad — export QA (2026-10-30)
+
+== deliver/final_ad.mp4
+stream|codec_name=h264|profile=High|width=1080|height=1920|pix_fmt=yuv420p|r_frame_rate=60/1|bit_rate=9351163|nb_frames=3600
+stream|codec_name=aac|profile=LC|sample_rate=48000|channels=2|r_frame_rate=0/0|bit_rate=316347|nb_frames=2814
+format|duration=60.000000
+faststart (moov before mdat): True
+decoded frames: 3600
+black stretches (pix_th 0.06, ≥0.04 s):
+black_start:5.3 black_end:6.6 black_duration:1.3
+frozen ≥1.2 s:
+  none
+loudness (ebur128, true peak):
+    I:         -14.0 LUFS
+    LRA:         4.3 LU
+    Peak:       -1.1 dBFS
+
+== deliver/final_ad_no_music.mp4
+stream|codec_name=h264|profile=High|width=1080|height=1920|pix_fmt=yuv420p|r_frame_rate=60/1|bit_rate=9351163|nb_frames=3600
+stream|codec_name=aac|profile=LC|sample_rate=48000|channels=2|r_frame_rate=0/0|bit_rate=217192|nb_frames=2814
+format|duration=60.000000
+faststart (moov before mdat): True
+decoded frames: 3600
+black stretches (pix_th 0.06, ≥0.04 s):
+black_start:5.3 black_end:6.6 black_duration:1.3
+frozen ≥1.2 s:
+  none
+loudness (ebur128, true peak):
+    I:         -17.4 LUFS
+    LRA:        16.5 LU
+    Peak:       -1.2 dBFS
+
+== deliver/behind_the_edit.mp4
+stream|codec_name=h264|profile=High|width=1080|height=1920|pix_fmt=yuv420p|r_frame_rate=60/1|bit_rate=7843864|nb_frames=3600
+stream|codec_name=aac|profile=LC|sample_rate=48000|channels=2|r_frame_rate=0/0|bit_rate=316347|nb_frames=2814
+format|duration=60.000000
+faststart (moov before mdat): True
+decoded frames: 3600
+black stretches (pix_th 0.06, ≥0.04 s):
+  none
+frozen ≥1.2 s:
+  none
+loudness (ebur128, true peak):
+    I:         -14.0 LUFS
+    LRA:         4.3 LU
+    Peak:       -1.1 dBFS
+
+Loop test: first frame vs last frame mean abs diff (0–255): 0.80 → seamless (night-city shot, letterbox closed, same clock position)
+Audio loop seam: RMS last 0.2 s vs first 0.12–0.32 s: -16.1 / -17.3 dB (within 1.2 dB; same drone, clock tick at 59.5 s and 0.0 s)
+Video B monitor sync: monitor crop vs Video A at frames 3572/3580/3588/3596 → best match at offset 0 or +1 frame (within one frame, ≤17 ms)
+Intentional dark section: 5.3–6.6 s is the scripted 'turn' (screen dies → black → flare builds), not a dropped/black-frame error.
+Premiere: 14 ProRes 422 HQ clips, 3600 frames total; stems 48 kHz / 24-bit; FCP7 XML parsed OK (17 clipitems, 3 markers).

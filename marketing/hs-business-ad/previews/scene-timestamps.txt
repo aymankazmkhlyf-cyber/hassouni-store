@@ -1,0 +1,37 @@
+HS cinematic ad — scene timestamps (60.0 s · 3600 frames @ 60 fps)
+
+01   0.00– 3.00 s  (frames    0– 179)  Hook
+02   3.00– 5.50 s  (frames  180– 329)  Hook 2 — closed
+03   5.50– 7.00 s  (frames  330– 419)  Turn
+04   7.00–12.00 s  (frames  420– 719)  Reveal
+05  12.00–17.00 s  (frames  720–1019)  1/7 Hours
+06  17.00–23.00 s  (frames 1020–1379)  2/7 Booking
+07  23.00–28.00 s  (frames 1380–1679)  3/7 Capacity
+08  28.00–34.00 s  (frames 1680–2039)  4/7 Auto reply
+09  34.00–40.00 s  (frames 2040–2399)  5/7 Handoff
+10  40.00–44.00 s  (frames 2400–2639)  6/7 Call
+11  44.00–50.00 s  (frames 2640–2999)  7/7 Dashboard
+12  50.00–55.00 s  (frames 3000–3299)  Offer
+13  55.00–59.50 s  (frames 3300–3569)  CTA
+14  59.50–60.00 s  (frames 3570–3599)  Loop
+
+Transitions:
+   3.00 s  hard cut + boom
+   4.20 s  smash cut
+   5.50 s  fade through dark
+   7.00 s  flash + letterbox opens
+   8.30 s  match cut: orbit ring → phone
+  12.00 s  whip pan
+  17.00 s  push-through zoom
+  18.10 s  match cut: button → globe
+  20.40 s  match cut: globe → boarding pass
+  23.00 s  light-leak dissolve
+  28.00 s  vertical whip
+  34.00 s  rack-focus dissolve
+  40.00 s  iris from call button
+  44.00 s  crane down
+  50.00 s  whip pan + flyby
+  55.00 s  light leak + flare
+  59.50 s  fade-match to opening
+
+Markers: HOOK 0.0 s · REVEAL 7.0 s · CTA 55.0 s

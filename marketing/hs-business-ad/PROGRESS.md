@@ -10,7 +10,7 @@ Never redo a finished part; commit any later fix to it separately.
 | 3 | Scenes 12.0–28.0 s (features 1–3) | ✅ |
 | 4 | Scenes 28.0–44.0 s (features 4–6) | ✅ |
 | 5 | Scenes 44.0–60.0 s + seamless loop + Video A assembly | ✅ |
-| 6 | Mix & master, Video B, Premiere export, QA, final renders | ⏳ |
+| 6 | Mix & master, Video B, Premiere export, QA, final renders | ✅ |
 
 ## Where things are
 
@@ -55,3 +55,10 @@ Never redo a finished part; commit any later fix to it separately.
 - Loop: 59.5–60.0 s fades into `HookShot(t − 60)` while the letterbox closes, so the last frame matches frame 0 (same night-city camera, same clock tick).
 - `src/VideoA.tsx` now assembles all 60 s. Full preview: `previews/videoA_full_preview.mp4` (half-res, 30 fps); `previews/part5.mp4` is its 44–60 s cut. Stills `previews/part5/`.
 - Part 6 prepared: `audio/make_audio.py` (score, SFX, stems, master, Video B meters), `src/studio/Studio.tsx` (Video B), `tools/make_premiere.py` (ProRes clips + FCP7 XML).
+
+### Part 6 ✅
+- Audio (`audio/make_audio.py`): D-minor drone + clock → silence beat → D-major lift at 7.0 s, 70 BPM ostinato, wide lift 50–60 s, opening drone returns in the last 0.5 s. Music ducks −3 dB under impacts. Master −14.0 LUFS, true peak −1.1 dBTP after AAC. Stems: `premiere_project/audio/` (24-bit).
+- Video A: `out/videoA_master.mov` (ProRes 4444, resumable 5 s chunks) → `deliver/final_ad.mp4` (H.264 High, CRF 14, yuv420p BT.709, AAC 320k, faststart). `deliver/final_ad_no_music.mp4`.
+- Video B (`src/studio/Studio.tsx`): HS Studio interface, program monitor = Video A (frame-synced within one frame), V1–V5 / A1–A4 tracks with thumbnails, real waveforms, keyframes, speed-ramp curves, markers, live meters; camera moves per brief. `deliver/behind_the_edit.mp4`.
+- Premiere: `premiere_project/` (14 ProRes 422 HQ clips, stems, `HS_ad_timeline.xml`, README). `deliver/premiere_project_xml_audio.zip` holds the XML + stems (the clips are 3 GB, kept on disk).
+- `deliver/thumbnail.png` (cover with the hook line), `deliver/scene-timestamps.txt`, `deliver/qa-report.txt` (all checks pass; 5.3–6.6 s darkness is the scripted turn).
