@@ -8,7 +8,7 @@ Never redo a finished part; commit any later fix to it separately.
 | 1 | Setup, design system, `texts.ts`, 3D base, icons, audio engine | ✅ |
 | 2 | Scenes 0.0–12.0 s (hook + reveal) | ✅ |
 | 3 | Scenes 12.0–28.0 s (features 1–3) | ✅ |
-| 4 | Scenes 28.0–44.0 s (features 4–6) | ⏳ |
+| 4 | Scenes 28.0–44.0 s (features 4–6) | ✅ |
 | 5 | Scenes 44.0–60.0 s + seamless loop + Video A assembly | ⏳ |
 | 6 | Mix & master, Video B, Premiere export, QA, final renders | ⏳ |
 
@@ -44,3 +44,8 @@ Never redo a finished part; commit any later fix to it separately.
 - New screens: ScheduleScreen, BookingScreen. Feature counter ١/٧ … ٣/٧ shows from 12.0 s.
 - Global additions (also affect Part 2 frames): a soft top scrim under the headlines; `ellipsisBreak` option in `Words` (used for 3/7 so it shows 4 + 3 words on two lines). UI seat label changed to «١٤» (the Latin «A» rendered next to Arabic digits read badly).
 - Preview: `previews/part3.mp4`, stills `previews/part3/`. Timing QA and text QA: 0 problems.
+
+### Part 4 ✅
+- `src/scenes/Part4.tsx`: vertical whip in at 28.0 s; 4/7 chat (question 29.0 s, typing, instant reply 30.4 s with «ردّ تلقائي»; the reply card is lifted out of the phone toward the lens at 31.45 s; tap on «التواصل مع الاستقبال» at 33.6 s); rack-focus dissolve at 34.0 s; 5/7 two glass chat cards in depth (reception messages, header morphs الاستقبال → المدير at 37.0 s with a rack focus to the manager card, «تم التحويل إلى المدير», manager reply 38.4 s, call icon pulses); iris from that call icon at 40.0 s; 6/7 «مكتب الريادة» call card (pulses 40.5/41.3/43.0 s, slow-motion tap ripple at 42.0 s, «جارٍ الاتصال…»).
+- New UI string: `ui.talkToReception`. Layout break for 4/7 (3 + 3 words).
+- Preview: `previews/part4.mp4`, stills `previews/part4/`. Timing QA and text QA: 0 problems.

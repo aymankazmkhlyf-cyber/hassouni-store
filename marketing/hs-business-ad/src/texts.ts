@@ -54,6 +54,7 @@ export const ui = {
   ofTotal: 'من ٢٠',
   reply: 'نعم، رحلات يومية إلى دبي\nبأسعار تبدأ من ٢٥٠٬٠٠٠ د.ع',
   autoReply: 'ردّ تلقائي',
+  talkToReception: 'التواصل مع الاستقبال',
   receptionHello: 'أهلًا بك، كيف نخدمك؟',
   clientAsk: 'أريد عرضًا لشركتنا',
   transferred: 'تم التحويل إلى المدير',

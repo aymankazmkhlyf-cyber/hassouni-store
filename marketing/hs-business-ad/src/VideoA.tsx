@@ -8,6 +8,7 @@ import { FeatureCounter } from './ui/Counter';
 import { Headline } from './ui/Words';
 import { Part2Picture } from './scenes/Part2';
 import { Part3Picture } from './scenes/Part3';
+import { Part4Picture } from './scenes/Part4';
 import { Whip } from './scenes/transitions';
 import { HEADLINES } from './headlines';
 
@@ -16,8 +17,10 @@ export const letterbox = (t: number) => (t < 7 ? 1 : t < 59.5 ? 1 - ramp(t, 7.0,
 const Picture: React.FC<{ t: number }> = ({ t }) => {
   if (t >= 11.8 && t < 12.2) return <Whip t={t} at={12.0} id="whip12" a={<Part2Picture t={t} />} b={<Part3Picture t={t} />} />;
   if (t < 12) return <Part2Picture t={t} />;
+  if (t >= 27.8 && t < 28.2) return <Whip t={t} at={28.0} dir="y" id="whip28" a={<Part3Picture t={t} />} b={<Part4Picture t={t} />} />;
   if (t < 28) return <Part3Picture t={t} />;
-  return <Part3Picture t={27.99} />;
+  if (t < 44) return <Part4Picture t={t} />;
+  return <Part4Picture t={43.99} />;
 };
 
 export const VideoA: React.FC<{ guides?: boolean }> = ({ guides = false }) => {

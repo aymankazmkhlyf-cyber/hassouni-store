@@ -13,5 +13,8 @@ export const HEADLINES: Head[] = [
   { text: brief.f1, start: 13.78, end: 16.85, exit: 0.15 },
   { text: brief.f2, start: 17.1, end: 22.85, exit: 0.2 },
   { text: brief.f3, start: 23.1, end: 27.85, exit: 0.2, breakAfter: 3, ellipsisBreak: false },
+  { text: brief.f4, start: 28.1, end: 33.85, exit: 0.2, breakAfter: 2 },
+  { text: brief.f5, start: 34.1, end: 39.85, exit: 0.2, size: 68 },
+  { text: brief.f6, start: 40.1, end: 43.8, exit: 0.2 },
 ];
 
