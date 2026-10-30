@@ -52,7 +52,7 @@ def perc_tap():
 
 def drone(sec, seed=0):
     t = E.t_axis(sec)
-    sub = np.sin(2 * np.pi * 36.7 * t) * 0.9
+    sub = np.sin(2 * np.pi * 36.7 * t) * 0.6
     saw = E.lp(E.osc_saw(73.4, sec, (-6, 5), seed), 320, 2) * 0.55
     strings = E.hp(E.osc_saw(hz(50), sec, (-9, 9), seed + 1) + E.osc_saw(hz(53), sec, (-8, 8), seed + 2) + E.osc_saw(hz(57), sec, (-7, 7), seed + 3), 400)
     strings = E.lp(strings, 2400) * (0.5 + 0.5 * np.sin(2 * np.pi * 5.2 * t)) * 0.07
@@ -95,21 +95,23 @@ def build_score():
     for i, chord in enumerate(lift):
         st = 50.0 + i * 2.5 if i < 3 else 57.0
         L = 2.6 if i < 3 else 2.4
-        place(music, E.stereo(pad(chord, L, 0.4, 1.4, 2800, 9), 0.6), st, 0.34)
-        place(music, E.stereo(pad([c + 12 for c in chord[1:]], L, 0.6, 1.4, 4200, 11), 0.6), st, 0.12)
+        place(music, E.stereo(pad(chord, L, 0.4, 1.4, 2800, 9), 0.6), st, 0.55)
+        place(music, E.stereo(pad([c + 12 for c in chord[1:]], L, 0.6, 1.4, 4200, 11), 0.6), st, 0.2)
+        place(music, E.stereo(E.lp(pad([chord[0] - 12], L, 0.1, 1.2, 400, 3), 300), 0.0), st, 0.55)
         for j in range(int(L / EIGHTH)):
-            place(music, pluck(hz(chord[(j % 4) + 1] + 12)), st + j * EIGHTH, 0.15, pan=0.3 if j % 2 else -0.3)
+            place(music, pluck(hz(chord[(j % 4) + 1] + 12)), st + j * EIGHTH, 0.22, pan=0.3 if j % 2 else -0.3)
     place(music, E.stereo(E.cymbal_swell(2.6), 0.5), 55.0 - 2.6 + LEAD, 0.35)
 
     # last 0.5 s: the opening drone comes back so the loop is seamless
-    tail = drone(0.5 + 0.05, 1)
-    xf = np.linspace(0, 1, len(tail)) ** 1.5
-    place(music, E.stereo(tail * xf, 0.3), 59.5, 0.55)
     music = E.reverb(music, E.reverb_ir(3.4, 2.2, 31), 0.3)[:N]
-    # fade the score's own reverb tail out of 59.5 → 60 so only the drone carries over
+    # 59.5–60 s: the score's tail gives way to the opening drone at full level, so the loop seam is seamless.
     t = np.arange(N) / SR
-    score_end = np.where(t < 59.5, 1.0, np.clip(1 - (t - 59.5) / 0.5, 0, 1) * 0.0 + 1.0)
-    return music * score_end[:, None]
+    keep = np.clip(1 - (t - 59.5) / 0.3, 0, 1)
+    music *= keep[:, None]
+    tail = E.stereo(drone(0.5, 1), 0.3) * 0.55
+    xf = np.clip(np.arange(len(tail)) / (0.25 * SR), 0, 1)[:, None]
+    music[-len(tail):] += tail * xf
+    return music
 
 
 # ───────────────────────────── SFX / impacts / whooshes
@@ -168,7 +170,7 @@ def frame_levels(x, fps=60):
     hop = SR // fps
     n = len(x) // hop
     x = x[: n * hop].reshape(n, hop, -1)
-    rms = np.sqrt((x ** 2).mean(axis=1) + 1e-12)
+    rms = np.sqrt((x ** 2).mean(axis=(1, 2)) + 1e-12)
     return np.round(20 * np.log10(rms), 1).tolist()
 
 
@@ -184,6 +186,7 @@ def main():
     score = E.sidechain(score, imp + 0.5 * wh, depth_db=3.0)
     fx = sfx + imp + wh
     mix = score + fx
+    mix = np.stack([E.hp(mix[:, 0], 28), E.hp(mix[:, 1], 28)], axis=1)
     meter = pyln.Meter(SR)
     gain_db = 0.0
     out = mix
@@ -208,8 +211,8 @@ def main():
     json.dump({'A1': frame_levels(score * g), 'A2': frame_levels(sfx * g), 'A3': frame_levels(imp * g), 'A4': frame_levels(wh * g), 'L': frame_levels(out[:, :1]), 'R': frame_levels(out[:, 1:])}, open(os.path.join(studio, 'levels.json'), 'w'))
     print(f'gain {gain_db:+.2f} dB | master {meter.integrated_loudness(out):.2f} LUFS, TP {E.true_peak_db(out):.2f} dBTP | no-music {meter.integrated_loudness(no_music):.2f} LUFS, TP {E.true_peak_db(no_music):.2f} dBTP')
     # loop check: level just before the end vs just after the start (should match closely)
-    a = out[-int(0.25 * SR):]
-    b = out[: int(0.25 * SR)]
+    a = out[-int(0.2 * SR):]
+    b = out[int(0.12 * SR): int(0.32 * SR)]  # skip the 0.0 s tick (its twin is at 59.5 s)
     print('loop seam RMS dB: end %.1f  start %.1f' % (20 * np.log10(np.sqrt((a ** 2).mean()) + 1e-12), 20 * np.log10(np.sqrt((b ** 2).mean()) + 1e-12)))
 
 

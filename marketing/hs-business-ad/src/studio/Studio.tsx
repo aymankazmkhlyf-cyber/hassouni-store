@@ -182,7 +182,10 @@ export const Studio: React.FC = () => {
   const t = frame / FPS;
   const head = px(t);
   const cam = camera(t);
-  const lv = (k: keyof typeof levels) => (levels[k] as number[])[Math.min(frame, (levels[k] as number[]).length - 1)] ?? -90;
+  const lv = (k: keyof typeof levels) => {
+    const arr = levels[k] as unknown as number[];
+    return arr[Math.min(frame, arr.length - 1)] ?? -90;
+  };
   const effScale = 100 + 6 * Math.sin(t * 0.7) + (t > 7 && t < 8 ? 20 * (1 - ramp(t, 7, 1)) : 0);
   const effPosY = Math.round(960 + 40 * Math.sin(t * 0.45));
   const effBlur = t > 33.75 && t < 34.25 ? 18 * Math.sin(ramp(t, 33.75, 0.5) * Math.PI) : 0;
@@ -214,7 +217,7 @@ export const Studio: React.FC = () => {
         </div>
         <div style={{ position: 'absolute', left: MON.x + 18, top: MON.y + 260, fontFamily: SANS, fontSize: 30, fontWeight: 800, color: ACCENT, direction: 'ltr' }}>{tc(t)}</div>
         <div style={{ position: 'absolute', left: MON.x + 18, top: MON.y + 302, fontFamily: SANS, fontSize: 15, color: DIM, direction: 'ltr' }}>{(tl.scenes.find((s) => t >= s.start && t < s.end) ?? tl.scenes[0]).name}</div>
-        <div style={{ position: 'absolute', right: MON.x + 18, top: MON.y + 260, textAlign: 'right', direction: 'ltr' }}>
+        <div style={{ position: 'absolute', right: MON.x + 18, top: MON.y + 260, width: 190, textAlign: 'right', direction: 'ltr' }}>
           <div style={{ fontFamily: SANS, fontSize: 14, color: DIM }}>Next transition</div>
           <div style={{ fontFamily: SANS, fontSize: 18, fontWeight: 700, color: TXT }}>{(tl.transitions.find((x) => x.at > t) ?? tl.transitions[tl.transitions.length - 1]).type}</div>
         </div>
