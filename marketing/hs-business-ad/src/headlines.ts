@@ -1,6 +1,6 @@
 import { brief } from './texts';
 
-export type Head = { text: string; start: number; end: number; exit?: number; y?: number; size?: number; breakAfter?: number };
+export type Head = { text: string; start: number; end: number; exit?: number; y?: number; size?: number; breakAfter?: number; ellipsisBreak?: boolean };
 
 // Headline windows. Each stays fully readable ≥ 1.8 s (checked by tools/timing_qa.ts).
 export const HEADLINES: Head[] = [
@@ -10,5 +10,8 @@ export const HEADLINES: Head[] = [
   { text: brief.reveal1, start: 8.33, end: 10.94, exit: 0.2, breakAfter: 1 },
   // Bridges into 1/7 so both reveal lines stay readable ≥ 1.8 s; the 1/7 headline follows at 13.78.
   { text: brief.reveal2, start: 10.96, end: 13.75, exit: 0.2, breakAfter: 3 },
+  { text: brief.f1, start: 13.78, end: 16.85, exit: 0.15 },
+  { text: brief.f2, start: 17.1, end: 22.85, exit: 0.2 },
+  { text: brief.f3, start: 23.1, end: 27.85, exit: 0.2, breakAfter: 3, ellipsisBreak: false },
 ];
 

@@ -7,7 +7,7 @@ Never redo a finished part; commit any later fix to it separately.
 |---|---|---|
 | 1 | Setup, design system, `texts.ts`, 3D base, icons, audio engine | ✅ |
 | 2 | Scenes 0.0–12.0 s (hook + reveal) | ✅ |
-| 3 | Scenes 12.0–28.0 s (features 1–3) | ⏳ |
+| 3 | Scenes 12.0–28.0 s (features 1–3) | ✅ |
 | 4 | Scenes 28.0–44.0 s (features 4–6) | ⏳ |
 | 5 | Scenes 44.0–60.0 s + seamless loop + Video A assembly | ⏳ |
 | 6 | Mix & master, Video B, Premiere export, QA, final renders | ⏳ |
@@ -38,3 +38,9 @@ Never redo a finished part; commit any later fix to it separately.
 - `src/scenes/Screens.tsx`: CallScreen, HomeScreen. `src/headlines.ts`: all headline windows. `src/VideoA.tsx`: composition (picture → counter → headlines → flash → grade → letterbox).
 - Timing: the turn line and the two reveal lines run past their scene edges so each stays readable ≥ 1.8 s (tools/timing_qa.ts: 0 problems). `reveal2` runs to 13.75 s, so the 1/7 headline starts at 13.78 s (Part 3).
 - Preview: `previews/part2.mp4`, stills `previews/part2/`.
+
+### Part 3 ✅
+- `src/scenes/Part3.tsx`: whip pan in at 12.0 s (`transitions.tsx` → `Whip`); 1/7 schedule (days ignite gold, cut to a close angle at 14.4 s, the hours card is pulled out of the phone at 15.75 s); push-through zoom at 17.0 s; 2/7 booking (tap at 17.9 s → the button opens into the 3D globe at 18.1 s with a speed-ramped spin, Baghdad → Istanbul arc, jet past the lens at 18.5 s; the globe collapses into a printed boarding pass at 20.4 s, «تم الحجز» stamp at 21.0 s); light-leak dissolve at 23.0 s; 3/7 capacity ring ١٨ → ١٩ → ٢٠ with «اكتملت حجوزات اليوم» at 26.6 s.
+- New screens: ScheduleScreen, BookingScreen. Feature counter ١/٧ … ٣/٧ shows from 12.0 s.
+- Global additions (also affect Part 2 frames): a soft top scrim under the headlines; `ellipsisBreak` option in `Words` (used for 3/7 so it shows 4 + 3 words on two lines). UI seat label changed to «١٤» (the Latin «A» rendered next to Arabic digits read badly).
+- Preview: `previews/part3.mp4`, stills `previews/part3/`. Timing QA and text QA: 0 problems.

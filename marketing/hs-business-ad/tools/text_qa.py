@@ -5,7 +5,7 @@ src = open('src/texts.ts', encoding='utf8').read()
 block = src[src.index('export const brief'):src.index('} as const;')]
 problems = 0
 # Layout line breaks used on screen (word index after which the line breaks) — the strings stay untouched.
-LAYOUT_BREAKS = {'reveal2': 3}
+LAYOUT_BREAKS = {'reveal2': 3, 'f3': 3}
 for key, val in re.findall(r"(\w+): '([^']*)'", block):
     issues = []
     if '...' in val: issues.append('three dots instead of …')

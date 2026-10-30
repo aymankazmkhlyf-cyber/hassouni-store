@@ -25,12 +25,14 @@ export const Words: React.FC<{
   align?: 'center' | 'flex-start' | 'flex-end';
   maxWidth?: number;
   breakAfter?: number;
-}> = ({ text, t, start, size, weight = 700, color = C.ivory, font = F.head, lineHeight = 1.4, gap = 0.26, align = 'center', maxWidth = 940, breakAfter }) => {
+  /** false: don't force a line break after a word ending in “…” (use `breakAfter` instead). */
+  ellipsisBreak?: boolean;
+}> = ({ text, t, start, size, weight = 700, color = C.ivory, font = F.head, lineHeight = 1.4, gap = 0.26, align = 'center', maxWidth = 940, breakAfter, ellipsisBreak = true }) => {
   const words = text.split(' ');
   const lines: { word: string; i: number }[][] = [[]];
   words.forEach((word, i) => {
     lines[lines.length - 1].push({ word, i });
-    if ((word.endsWith('…') || i === breakAfter) && i < words.length - 1) lines.push([]);
+    if (((ellipsisBreak && word.endsWith('…')) || i === breakAfter) && i < words.length - 1) lines.push([]);
   });
   return (
     <div dir="rtl" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth }}>
@@ -75,8 +77,9 @@ export const Headline: React.FC<{
   exit?: number;
   y?: number;
   breakAfter?: number;
+  ellipsisBreak?: boolean;
   glow?: boolean;
-}> = ({ text, t, start, end, size = 72, color = C.ivory, exit = 0.25, y = HEAD_Y, breakAfter, glow = true }) => {
+}> = ({ text, t, start, end, size = 72, color = C.ivory, exit = 0.25, y = HEAD_Y, breakAfter, ellipsisBreak, glow = true }) => {
   if (t < start - 0.05 || t > end) return null;
   const out = exit > 0 ? ramp(t, end - exit, exit) : 0;
   return (
@@ -94,7 +97,7 @@ export const Headline: React.FC<{
         textShadow: glow ? '0 6px 30px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.45)' : undefined,
       }}
     >
-      <Words text={text} t={t} start={start} size={size} color={color} breakAfter={breakAfter} />
+      <Words text={text} t={t} start={start} size={size} color={color} breakAfter={breakAfter} ellipsisBreak={ellipsisBreak} />
     </div>
   );
 };

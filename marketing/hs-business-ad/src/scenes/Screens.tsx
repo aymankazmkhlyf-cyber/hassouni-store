@@ -110,3 +110,100 @@ export const HomeScreen: React.FC<{ t: number; at: number; tapAt?: number }> = (
     </div>
   );
 };
+
+// ───────────────────────────── 1/7: weekly schedule
+export const ScheduleScreen: React.FC<{ t: number; at: number; days: number[]; hoursAt: number; hideHours?: number }> = ({ t, at, days, hoursAt, hideHours = 0 }) => {
+  const hours = sp(t, hoursAt, 19, 170);
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: screenBg }}>
+      <TitleBar title={ui.workHours} t={t} at={at} />
+      {ui.days.map((d, i) => {
+        const lit = ramp(t, days[i], 0.3);
+        const off = i === 6;
+        return (
+          <Abs
+            key={d}
+            y={164 + i * 78}
+            h={68}
+            style={{
+              borderRadius: 22,
+              direction: 'rtl',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 22px',
+              boxSizing: 'border-box',
+              background: off ? `rgba(244,239,230,${0.04 + lit * 0.04})` : `linear-gradient(90deg, rgba(217,164,65,${0.06 + lit * 0.3}), rgba(217,164,65,${0.02 + lit * 0.1}))`,
+              border: `1.5px solid rgba(${off ? '244,239,230' : '217,164,65'},${0.12 + lit * 0.5})`,
+              boxShadow: !off && lit > 0 ? `0 0 ${26 * Math.sin(lit * Math.PI) + 8 * lit}px rgba(217,164,65,${0.35 * lit})` : undefined,
+              opacity: Math.min(1, ramp(t, at + 0.05 + i * 0.04, 0.3)),
+            }}
+          >
+            <Txt size={36} weight={600} color={lit > 0.5 ? C.ivory : C.muted}>{d}</Txt>
+            <div style={{ marginRight: 'auto' }}>
+              {off ? (
+                <div style={{ padding: '0 16px', borderRadius: 16, background: 'rgba(244,239,230,0.08)', opacity: lit }}>
+                  <Txt size={34} weight={600} color={C.muted}>{ui.dayOff}</Txt>
+                </div>
+              ) : (
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: `rgba(217,164,65,${lit})`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid rgba(217,164,65,${0.3 + lit * 0.7})` }}>
+                  <Icon name="check" size={28} color={C.navy} t={t} drawAt={days[i]} stroke={2.8} />
+                </div>
+              )}
+            </div>
+          </Abs>
+        );
+      })}
+      <Abs y={724} h={104} style={{ ...glass(0.12), borderRadius: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, direction: 'rtl', opacity: Math.min(1, hours * 1.4) * (1 - hideHours), transform: `translateY(${(1 - hours) * 24}px) scale(${0.94 + 0.06 * hours})` }}>
+        <Icon name="clock" size={44} color={C.gold} t={t} drawAt={hoursAt} />
+        <Txt size={44} weight={700} font={F.head} color={C.gold}>{brief.f1Hours}</Txt>
+      </Abs>
+    </div>
+  );
+};
+
+// ───────────────────────────── 2/7: trip booking
+export const BOOK_BTN = { y: 760, h: 100 };
+
+export const BookingScreen: React.FC<{ t: number; at: number; tapAt: number }> = ({ t, at, tapAt }) => {
+  const press = ramp(t, tapAt, 0.08) * (1 - ramp(t, tapAt + 0.12, 0.2));
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: screenBg }}>
+      <TitleBar title={ui.bookTrip} t={t} at={at} />
+      <Abs y={170} h={300} style={{ ...glass(0.08), borderRadius: 32, ...rise(t, at + 0.08) }}>
+        {[
+          { y: 30, icon: 'pin' as IconName, city: ui.cities.baghdad },
+          { y: 170, icon: 'pin' as IconName, city: ui.cities.istanbul },
+        ].map((r, i) => (
+          <div key={i} style={{ position: 'absolute', right: 26, left: 26, top: r.y, height: 100, display: 'flex', alignItems: 'center', gap: 18, direction: 'rtl' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 22, background: i ? 'rgba(217,164,65,0.18)' : 'rgba(95,183,229,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={r.icon} size={38} color={i ? C.gold : C.sky} />
+            </div>
+            <Txt size={46} weight={700} font={F.head}>{r.city}</Txt>
+          </div>
+        ))}
+        <div style={{ position: 'absolute', left: 40, top: 118, width: 64, height: 64, borderRadius: '50%', background: C.navy, border: `2px solid rgba(217,164,65,0.6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `rotate(${180 + Math.sin((t - at) * 2) * 6}deg)` }}>
+          <Icon name="plane" size={36} color={C.gold} />
+        </div>
+        <div style={{ position: 'absolute', right: 58, top: 138, width: 2, height: 30, background: 'rgba(244,239,230,0.25)' }} />
+      </Abs>
+      <Abs y={500} h={96} style={{ display: 'flex', gap: 16, direction: 'rtl', ...rise(t, at + 0.16) }}>
+        {(
+          [
+            ['calendar', ui.flightDate],
+            ['ticket', ui.seatNo],
+          ] as [IconName, string][]
+        ).map(([icon, v]) => (
+          <div key={icon} style={{ flex: 1, ...glass(0.07), borderRadius: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, direction: 'rtl' }}>
+            <Icon name={icon} size={36} color={C.gold} />
+            <Txt size={40} weight={700} font={F.head}>{v}</Txt>
+          </div>
+        ))}
+      </Abs>
+      <Abs y={BOOK_BTN.y} h={BOOK_BTN.h} style={{ borderRadius: 32, background: `linear-gradient(135deg, #f0c56a, ${C.gold} 55%, #b9822a)`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, boxShadow: `0 20px 40px -14px rgba(217,164,65,0.9), 0 0 ${30 * ramp(t, tapAt - 0.1, 0.2)}px rgba(217,164,65,0.8)`, transform: `${rise(t, at + 0.24).transform} scale(${1 - press * 0.05})`, opacity: rise(t, at + 0.24).opacity }}>
+        <Icon name="plane" size={40} color={C.navy} />
+        <Txt size={42} weight={700} color={C.navy}>{ui.bookTrip}</Txt>
+      </Abs>
+      <Tap t={t} at={tapAt} x={SW / 2} y={BOOK_BTN.y + BOOK_BTN.h / 2} />
+    </div>
+  );
+};

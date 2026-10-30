@@ -7,13 +7,17 @@ import { Flash, Grade, Letterbox } from './ui/Effects';
 import { FeatureCounter } from './ui/Counter';
 import { Headline } from './ui/Words';
 import { Part2Picture } from './scenes/Part2';
+import { Part3Picture } from './scenes/Part3';
+import { Whip } from './scenes/transitions';
 import { HEADLINES } from './headlines';
 
 export const letterbox = (t: number) => (t < 7 ? 1 : t < 59.5 ? 1 - ramp(t, 7.0, 0.6) : ramp(t, 59.5, 0.45));
 
 const Picture: React.FC<{ t: number }> = ({ t }) => {
+  if (t >= 11.8 && t < 12.2) return <Whip t={t} at={12.0} id="whip12" a={<Part2Picture t={t} />} b={<Part3Picture t={t} />} />;
   if (t < 12) return <Part2Picture t={t} />;
-  return <Part2Picture t={Math.min(t, 11.99)} />;
+  if (t < 28) return <Part3Picture t={t} />;
+  return <Part3Picture t={27.99} />;
 };
 
 export const VideoA: React.FC<{ guides?: boolean }> = ({ guides = false }) => {
@@ -23,9 +27,11 @@ export const VideoA: React.FC<{ guides?: boolean }> = ({ guides = false }) => {
   return (
     <AbsoluteFill style={{ background: '#000' }}>
       <Picture t={t} />
+      {/* soft scrim so headlines stay readable over busy shots */}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 230, height: 380, background: 'linear-gradient(180deg, rgba(5,10,18,0.62) 0%, rgba(5,10,18,0.45) 55%, rgba(5,10,18,0) 100%)', pointerEvents: 'none' }} />
       <FeatureCounter t={t} />
       {HEADLINES.map((h, i) => (
-        <Headline key={i} text={h.text} t={t} start={h.start} end={h.end} exit={h.exit ?? 0.25} y={h.y} size={h.size ?? 72} breakAfter={h.breakAfter} />
+        <Headline key={i} text={h.text} t={t} start={h.start} end={h.end} exit={h.exit ?? 0.25} y={h.y} size={h.size ?? 72} breakAfter={h.breakAfter} ellipsisBreak={h.ellipsisBreak} />
       ))}
       <Flash a={flash} color="#fff4dc" />
       <Grade frame={frame} />

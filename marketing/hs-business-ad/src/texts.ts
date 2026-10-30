@@ -49,7 +49,7 @@ export const ui = {
   seat: 'المقعد',
   flightNo: 'HZ ٢١٤',
   flightDate: '١٢ / ١١',
-  seatNo: '١٤A',
+  seatNo: '١٤',
   todaysBookings: 'حجوزات اليوم',
   ofTotal: 'من ٢٠',
   reply: 'نعم، رحلات يومية إلى دبي\nبأسعار تبدأ من ٢٥٠٬٠٠٠ د.ع',
