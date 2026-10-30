@@ -9,7 +9,7 @@ Never redo a finished part; commit any later fix to it separately.
 | 2 | Scenes 0.0–12.0 s (hook + reveal) | ✅ |
 | 3 | Scenes 12.0–28.0 s (features 1–3) | ✅ |
 | 4 | Scenes 28.0–44.0 s (features 4–6) | ✅ |
-| 5 | Scenes 44.0–60.0 s + seamless loop + Video A assembly | ⏳ |
+| 5 | Scenes 44.0–60.0 s + seamless loop + Video A assembly | ✅ |
 | 6 | Mix & master, Video B, Premiere export, QA, final renders | ⏳ |
 
 ## Where things are
@@ -49,3 +49,9 @@ Never redo a finished part; commit any later fix to it separately.
 - `src/scenes/Part4.tsx`: vertical whip in at 28.0 s; 4/7 chat (question 29.0 s, typing, instant reply 30.4 s with «ردّ تلقائي»; the reply card is lifted out of the phone toward the lens at 31.45 s; tap on «التواصل مع الاستقبال» at 33.6 s); rack-focus dissolve at 34.0 s; 5/7 two glass chat cards in depth (reception messages, header morphs الاستقبال → المدير at 37.0 s with a rack focus to the manager card, «تم التحويل إلى المدير», manager reply 38.4 s, call icon pulses); iris from that call icon at 40.0 s; 6/7 «مكتب الريادة» call card (pulses 40.5/41.3/43.0 s, slow-motion tap ripple at 42.0 s, «جارٍ الاتصال…»).
 - New UI string: `ui.talkToReception`. Layout break for 4/7 (3 + 3 words).
 - Preview: `previews/part4.mp4`, stills `previews/part4/`. Timing QA and text QA: 0 problems.
+
+### Part 5 ✅
+- `src/scenes/Part5.tsx`: crane down at 43.7–44.15 s (6/7 rises out of frame with vertical motion blur while the camera descends a 3D glass tower); 7/7 laptop dashboard builds widget by widget (45.0–48.0 s: bookings counter, monthly chart, staff list) and orbits from 47.4 s; whip pan + 3D jet past the lens at 50.0 s; offer: dusk sky, rising gold graph (51–53 s), «السعر عند الاستفسار» card at 52.6 s; light leak + flare into the CTA at 55.0 s: HS logo, comment field typing «موقع», coral button «اطلب موقع شركتك الآن» (pulses 57.6/58.4/59.2 s), DM icon, «أو راسلنا خاص على إنستغرام». [INSTAGRAM_HANDLE] is still a placeholder, so that line is omitted.
+- Loop: 59.5–60.0 s fades into `HookShot(t − 60)` while the letterbox closes, so the last frame matches frame 0 (same night-city camera, same clock tick).
+- `src/VideoA.tsx` now assembles all 60 s. Full preview: `previews/videoA_full_preview.mp4` (half-res, 30 fps); `previews/part5.mp4` is its 44–60 s cut. Stills `previews/part5/`.
+- Part 6 prepared: `audio/make_audio.py` (score, SFX, stems, master, Video B meters), `src/studio/Studio.tsx` (Video B), `tools/make_premiere.py` (ProRes clips + FCP7 XML).

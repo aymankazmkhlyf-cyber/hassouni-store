@@ -2,13 +2,14 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import './fonts';
-import { FPS, H, SAFE, W, ramp } from './theme';
-import { Flash, Grade, Letterbox } from './ui/Effects';
+import { EASE_IN, FPS, H, SAFE, W, ramp } from './theme';
+import { Flash, Grade, Letterbox, MotionFX } from './ui/Effects';
 import { FeatureCounter } from './ui/Counter';
 import { Headline } from './ui/Words';
 import { Part2Picture } from './scenes/Part2';
 import { Part3Picture } from './scenes/Part3';
 import { Part4Picture } from './scenes/Part4';
+import { Part5Picture } from './scenes/Part5';
 import { Whip } from './scenes/transitions';
 import { HEADLINES } from './headlines';
 
@@ -19,8 +20,23 @@ const Picture: React.FC<{ t: number }> = ({ t }) => {
   if (t < 12) return <Part2Picture t={t} />;
   if (t >= 27.8 && t < 28.2) return <Whip t={t} at={28.0} dir="y" id="whip28" a={<Part3Picture t={t} />} b={<Part4Picture t={t} />} />;
   if (t < 28) return <Part3Picture t={t} />;
+  if (t >= 43.7 && t < 44.15) {
+    // crane down: the 6/7 shot rises out of frame while the camera descends the glass tower
+    const p = ramp(t, 43.7, 0.45, EASE_IN);
+    return (
+      <AbsoluteFill>
+        <Part5Picture t={t} />
+        <MotionFX id="crane44" amount={Math.sin(p * Math.PI) * 0.6} dir={90}>
+          <AbsoluteFill style={{ transform: `translateY(${-p * H * 1.05}px)` }}>
+            <Part4Picture t={t} />
+          </AbsoluteFill>
+        </MotionFX>
+      </AbsoluteFill>
+    );
+  }
   if (t < 44) return <Part4Picture t={t} />;
-  return <Part4Picture t={43.99} />;
+  if (t >= 49.8 && t < 50.2) return <Whip t={t} at={50.0} id="whip50" a={<Part5Picture t={t} />} b={<Part5Picture t={t} />} />;
+  return <Part5Picture t={t} />;
 };
 
 export const VideoA: React.FC<{ guides?: boolean }> = ({ guides = false }) => {

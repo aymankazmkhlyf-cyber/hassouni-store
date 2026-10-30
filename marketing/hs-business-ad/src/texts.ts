@@ -72,6 +72,8 @@ export const ui = {
   ],
   clients: 'العملاء',
   monthly: 'اشتراك شهري',
+  // The comment keyword typed in the CTA's comment field (same word as in brief.cta1).
+  commentKeyword: 'موقع',
   statusTime: '٢:٠٠',
 } as const;
 

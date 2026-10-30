@@ -119,8 +119,8 @@ export const Tower3D: React.FC<{ cam: Cam3 }> = ({ cam }) => {
         roughness: 0.15,
         metalness: 0.9,
         emissive: new THREE.Color('#ffffff'),
-        emissiveMap: windowTexture(9, 0.45, true),
-        emissiveIntensity: 1.1,
+        emissiveMap: windowTexture(9, 0.3, true),
+        emissiveIntensity: 0.9,
       }),
     [],
   );
@@ -134,7 +134,7 @@ export const Tower3D: React.FC<{ cam: Cam3 }> = ({ cam }) => {
       <ambientLight intensity={0.4} color="#88aacc" />
       <directionalLight position={[30, 120, 60]} intensity={0.9} color="#c8dcff" />
       <pointLight position={[0, 40, 22]} intensity={90} distance={120} color="#ffcf8a" />
-      <mesh geometry={buildingGeometry(22, 140, 22)} material={mat} position={[0, 70, 0]} />
+      <mesh geometry={buildingGeometry(22, 140, 22, 7)} material={mat} position={[0, 70, 0]} />
       {/* glass fins */}
       {[-11.2, 11.2].map((x) => (
         <mesh key={x} position={[x, 70, 11.2]}>

@@ -6,3 +6,4 @@ premiere_project/clips/
 premiere_project/audio/
 previews/**/*.mp4
 !previews/part*.mp4
+!previews/videoA_full_preview.mp4
