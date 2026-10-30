@@ -1,0 +1,26 @@
+{
+  "name": "hs-business-ad",
+  "private": true,
+  "version": "1.0.0",
+  "description": "HS — cinematic 60 s Arabic ad for business & travel-agency websites (Remotion)",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@react-three/fiber": "9.3.0",
+    "@remotion/bundler": "4.0.539",
+    "@remotion/cli": "4.0.539",
+    "@remotion/renderer": "4.0.539",
+    "@remotion/three": "4.0.539",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.539",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/three": "0.180.0",
+    "typescript": "^5.9.0"
+  }
+}
