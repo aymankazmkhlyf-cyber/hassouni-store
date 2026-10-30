@@ -14,7 +14,7 @@ const args = rest.filter((a) => !a.startsWith('--'));
 const serveUrl = await bundle({ entryPoint: path.resolve('src/index.ts'), publicDir: path.resolve('public') });
 const inputProps = { guides };
 const COMP = process.env.COMP || 'HSClinicAd';
-const TAG = COMP === 'HSClinicAd' ? '' : '-split';
+const TAG = COMP === 'HSClinicAd' ? '' : COMP === 'HSClinicSplit' ? '-split' : `-${COMP}`;
 const composition = await selectComposition({ serveUrl, id: COMP, inputProps, browserExecutable });
 const chromiumOptions = { gl: 'swangle' };
 fs.mkdirSync('out/stills', { recursive: true });
