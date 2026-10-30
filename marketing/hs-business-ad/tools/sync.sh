@@ -8,7 +8,7 @@ WT=/tmp/claude-0/nr
 D="$WT/marketing/hs-business-ad"
 mkdir -p "$D"
 rsync -a --delete --exclude node_modules --exclude out --exclude deliver --exclude .git \
-  --exclude 'audio/*.wav' --exclude 'premiere_project/clips' --exclude 'premiere_project/audio' --exclude '__pycache__' ./ "$D/"
+  --exclude 'audio/*.wav' --exclude 'premiere_project/clips' --exclude 'premiere_project/audio' --exclude '__pycache__' --exclude 'public/studio/videoA.mp4' ./ "$D/"
 cd "$WT"
 git add -f -A marketing/hs-business-ad
 git commit -q -m "$1" || true
